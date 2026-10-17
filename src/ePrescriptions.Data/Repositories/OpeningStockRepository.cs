@@ -53,6 +53,14 @@ namespace ePrescriptions.Data.Repositories
 
             voucher.RecalculateTotals();
 
+            // الحفظ بيعدّل بنود السند (ItemId/ItemCode...) أثناء الـ Transaction. لو الحفظ فشل واتعمل Rollback لازم نرجّع
+            // القيم الأصلية، وإلا المحاولة التانية بنفس البنود هتستخدم ItemId لصنف اتلغى بالـ Rollback وتفشل بـ FOREIGN KEY.
+            var snapshots = new List<(int ItemId, string? ItemCode, int Strips, int Pieces, int LineId, int VoucherId)>();
+            foreach (var l in voucher.Lines)
+                snapshots.Add((l.ItemId, l.ItemCode, l.StripsPerBox, l.PiecesPerStrip, l.Id, l.VoucherId));
+            int originalVoucherId = voucher.Id;
+            string originalVoucherNumber = voucher.VoucherNumber;
+
             using var conn = _dbContext.CreateConnection();
             using var trans = conn.BeginTransaction();
             try
@@ -108,19 +116,31 @@ namespace ePrescriptions.Data.Repositories
 
                     int perBox = line.SmallestUnitsPerBox;
 
-                    // أ) إذا كان الصنف جديداً (غير موجود في جدول Items)
+                    // أ) تحديد الصنف: لو ItemId مش موجود فعلاً في Items (قديم/اتلغى) نتجاهله ونبحث بالباركود/الكود
+                    //    كل البحث بيتم على نفس الاتصال والـ Transaction عشان صنف اتضاف في سطر سابق من نفس الملف يتشاف
+                    //    (نفس الباركود في أكتر من تشغيلة) ومايتكررش، والأصناف الموقوفة بتتعاد تفعيلها بدل ما تفشل على UNIQUE.
+                    if (line.ItemId > 0 && !ItemExists(conn, trans, line.ItemId))
+                        line.ItemId = 0;
+
                     if (line.ItemId <= 0)
                     {
-                        var existing = !string.IsNullOrWhiteSpace(line.ItemBarcode)
-                            ? _itemRepository.GetByBarcodeOrCode(line.ItemBarcode!.Trim())
-                            : null;
+                        var existing = FindItem(conn, trans, line.ItemBarcode, line.ItemCode);
 
                         if (existing != null)
                         {
-                            line.ItemId = existing.Id;
-                            line.ItemCode = existing.Code;
-                            line.StripsPerBox = existing.StripsPerBox;
-                            line.PiecesPerStrip = existing.PiecesPerStrip;
+                            line.ItemId = existing.Value.Id;
+                            line.ItemCode = existing.Value.Code;
+                            line.StripsPerBox = existing.Value.Strips;
+                            line.PiecesPerStrip = existing.Value.Pieces;
+
+                            if (!existing.Value.IsActive)
+                            {
+                                using var reactivate = conn.CreateCommand();
+                                reactivate.Transaction = trans;
+                                reactivate.CommandText = "UPDATE Items SET IsActive = 1 WHERE Id = @id;";
+                                reactivate.Parameters.AddWithValue("@id", line.ItemId);
+                                reactivate.ExecuteNonQuery();
+                            }
                         }
                         else
                         {
@@ -128,6 +148,9 @@ namespace ePrescriptions.Data.Repositories
                             string itemCode = string.IsNullOrWhiteSpace(line.ItemCode)
                                 ? $"MED-{DbDate.Compact(DateTime.Now)}-{lineIndex:D3}"
                                 : line.ItemCode!.Trim();
+
+                            // Items.Barcode فريد وNOT NULL: الأصناف من غير باركود بتاخد الكود بدل نص فاضي (وإلا تاني صنف فاضي هيفشل)
+                            string itemBarcode = string.IsNullOrWhiteSpace(line.ItemBarcode) ? itemCode : line.ItemBarcode!.Trim();
 
                             using var insertItemCmd = conn.CreateCommand();
                             insertItemCmd.Transaction = trans;
@@ -150,7 +173,7 @@ namespace ePrescriptions.Data.Repositories
                                 SELECT last_insert_rowid();";
 
                             insertItemCmd.Parameters.AddWithValue("@code", itemCode);
-                            insertItemCmd.Parameters.AddWithValue("@barcode", line.ItemBarcode ?? string.Empty);
+                            insertItemCmd.Parameters.AddWithValue("@barcode", itemBarcode);
                             insertItemCmd.Parameters.AddWithValue("@nameAr", line.ItemNameAr?.Trim() ?? "صنف جديد");
                             insertItemCmd.Parameters.AddWithValue("@nameEn", line.ItemNameEn?.Trim() ?? string.Empty);
                             insertItemCmd.Parameters.AddWithValue("@active", line.ActiveIngredient?.Trim() ?? string.Empty);
@@ -300,6 +323,19 @@ namespace ePrescriptions.Data.Repositories
             catch (Exception ex)
             {
                 trans.Rollback();
+                for (int i = 0; i < voucher.Lines.Count && i < snapshots.Count; i++)
+                {
+                    var l = voucher.Lines[i];
+                    var snap = snapshots[i];
+                    l.ItemId = snap.ItemId;
+                    l.ItemCode = snap.ItemCode ?? string.Empty;
+                    l.StripsPerBox = snap.Strips;
+                    l.PiecesPerStrip = snap.Pieces;
+                    l.Id = snap.LineId;
+                    l.VoucherId = snap.VoucherId;
+                }
+                voucher.Id = originalVoucherId;
+                voucher.VoucherNumber = originalVoucherNumber;
                 Logger.LogException(ex, "OpeningStockRepository.SaveVoucher");
                 throw;
             }
@@ -313,6 +349,45 @@ namespace ePrescriptions.Data.Repositories
             {
                 Logger.LogException(ex, "OpeningStockRepository.BackfillSearchText");
             }
+        }
+
+        private static bool ItemExists(SQLiteConnection conn, SQLiteTransaction trans, int itemId)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = trans;
+            cmd.CommandText = "SELECT 1 FROM Items WHERE Id = @id LIMIT 1;";
+            cmd.Parameters.AddWithValue("@id", itemId);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        /// <summary>بحث عن صنف بالباركود أو الكود (يشمل الموقوف) داخل الـ Transaction الحالية</summary>
+        private static (int Id, string Code, int Strips, int Pieces, bool IsActive)? FindItem(
+            SQLiteConnection conn, SQLiteTransaction trans, string? barcode, string? code)
+        {
+            var keys = new List<string>();
+            if (!string.IsNullOrWhiteSpace(barcode)) keys.Add(barcode!.Trim());
+            if (!string.IsNullOrWhiteSpace(code)) keys.Add(code!.Trim());
+
+            foreach (var key in keys)
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = trans;
+                cmd.CommandText = @"
+                    SELECT Id, Code, StripsPerBox, PiecesPerStrip, IsActive
+                    FROM Items
+                    WHERE Barcode = @k OR Code = @k
+                    ORDER BY IsActive DESC, Id ASC
+                    LIMIT 1;";
+                cmd.Parameters.AddWithValue("@k", key);
+                using var r = cmd.ExecuteReader();
+                if (r.Read())
+                {
+                    return (Convert.ToInt32(r["Id"]), r["Code"]?.ToString() ?? string.Empty,
+                            Math.Max(1, Convert.ToInt32(r["StripsPerBox"])), Math.Max(1, Convert.ToInt32(r["PiecesPerStrip"])),
+                            Convert.ToInt32(r["IsActive"]) == 1);
+                }
+            }
+            return null;
         }
 
         /// <summary>
