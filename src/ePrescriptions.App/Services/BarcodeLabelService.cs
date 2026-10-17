@@ -42,6 +42,37 @@ namespace ePrescriptions.App.Services
             return new PaperSize("CustomLabel", widthUnits, heightUnits);
         }
 
+        /// <summary>
+        /// أكبر خط (من startPt لتحت لحد minPt) يخلّي النص يتسع في العرض. اللي بيستدعي هو اللي بيعمل Dispose للخط.
+        /// </summary>
+        private static Font FitFont(Graphics g, string text, string family, float startPt, float minPt, float maxWidth, FontStyle style)
+        {
+            float pt = startPt;
+            while (pt > minPt)
+            {
+                var candidate = new Font(family, pt, style);
+                if (g.MeasureString(text, candidate).Width <= maxWidth) return candidate;
+                candidate.Dispose();
+                pt -= 0.25f;
+            }
+            return new Font(family, minPt, style);
+        }
+
+        private static StringFormat MakeFormat(StringAlignment alignment, bool rtl)
+        {
+            var sf = new StringFormat
+            {
+                Alignment = alignment,
+                LineAlignment = StringAlignment.Center,
+                Trimming = StringTrimming.EllipsisCharacter,
+                FormatFlags = StringFormatFlags.NoWrap
+            };
+            if (rtl) sf.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
+            // أرقام لاتينية (0123) بدل الهندية (٠١٢٣) مهما كانت لغة ويندوز
+            sf.SetDigitSubstitution(1033, StringDigitSubstitute.None);
+            return sf;
+        }
+
         public bool PrintBarcodeLabel(Item item, ItemBatch? batch, int labelCount, out string errorMessage)
         {
             errorMessage = string.Empty;
@@ -54,27 +85,28 @@ namespace ePrescriptions.App.Services
                     ? string.Empty
                     : settings.LabelPrinterName;
 
-                // لا اسم شخصي افتراضي: لو اسم الصيدلية فاضي سطر العنوان يتشال (أو يفضل رقم التشغيلة بس)
-                string pharmacyName = string.IsNullOrWhiteSpace(settings.PharmacyNameAr) ? string.Empty : settings.PharmacyNameAr;
+                // لا اسم شخصي افتراضي: لو اسم الصيدلية فاضي سطر الاسم بيتشال
+                string pharmacyName = string.IsNullOrWhiteSpace(settings.PharmacyNameAr) ? string.Empty : settings.PharmacyNameAr.Trim();
+                string phone = string.IsNullOrWhiteSpace(settings.Phone) ? string.Empty : settings.Phone.Trim();
+
                 // ملصق تشغيلة: الباركود يعرّف التشغيلة (ومنها تاريخ الصلاحية)، وغير ذلك باركود الصنف العادي
                 bool isBatchLabel = batch != null && batch.Id > 0;
                 string barcodeToPrint = isBatchLabel
                     ? BatchLabelCode.Encode(batch!.Id)
                     : (string.IsNullOrWhiteSpace(item.Barcode) ? item.Code : item.Barcode);
-                decimal retailPounds = item.RetailPriceBoxPiastres / 100m;
-                string priceText = $"{retailPounds:N2} ج.م";
-                string expText = batch != null ? $"صلاحية: {DbDate.Slash(batch.ExpiryDate)}" : "";
 
-                // 1) اسم الصيدلية (ورقم التشغيلة على ملصق التشغيلة)
-                string batchPart = isBatchLabel && !string.IsNullOrEmpty(batch!.BatchNumber) ? $"ت: {batch.BatchNumber}" : string.Empty;
-                string titleLine = pharmacyName.Length > 0 && batchPart.Length > 0
-                    ? $"{pharmacyName} | {batchPart}"
-                    : (pharmacyName.Length > 0 ? pharmacyName : batchPart);
-                string displayName = item.NameAr.Length > 26 ? item.NameAr.Substring(0, 24) + ".." : item.NameAr;
-                string footerText = expText.Length > 0 ? $"{priceText}  |  {expText}" : priceText;
+                // السطر العلوي: اسم الصيدلية يمين، والتليفون يسار (وعلى ملصق التشغيلة بيتبدل بتاريخ الصلاحية)
+                string headerLeft = isBatchLabel
+                    ? "EXP " + batch!.ExpiryDate.ToString("MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)
+                    : phone;
 
-                // التوزيع محسوب على مقاس الملصق مع تقليل ارتفاع الباركود للنصف لمنع خروجه على ورقتين
-                var layout = LabelLayout.Compute(settings.LabelWidthMm, settings.LabelHeightMm, wantTitle: titleLine.Length > 0, halfBarcode: true);
+                // اسم الصنف تحت الباركود: الاسم الإنجليزي لو موجود (زي الملصق المرجعي) وإلا العربي
+                string itemName = !string.IsNullOrWhiteSpace(item.NameEn) ? item.NameEn.Trim() : (item.NameAr ?? string.Empty).Trim();
+                bool itemNameIsArabic = string.IsNullOrWhiteSpace(item.NameEn);
+
+                var layout = ShelfLabelLayout.Compute(settings.LabelWidthMm, settings.LabelHeightMm);
+                if (!layout.Fits)
+                    Logger.LogInfo($"مقاس الملصق {settings.LabelWidthMm}×{settings.LabelHeightMm} مم صغير على التوزيع؛ الباركود هيطلع بأدنى ارتفاع.", "BarcodeLabelService");
 
                 // طباعة مهمة واحدة لكل الملصقات (صفحة لكل ملصق) بدل مهمة طباعة منفصلة لكل ملصق
                 using var printDoc = new PrintDocument();
@@ -97,41 +129,40 @@ namespace ePrescriptions.App.Services
                     if (g == null) return;
 
                     // نقطة الأصل في GDI+ بتبدأ من بداية المنطقة القابلة للطباعة (بعد الهامش الصلب للطابعة) مش من حافة الملصق.
-                    // من غير التعويض ده كل حاجة بتتزحزح يمين وتحت بمقدار الهامش الصلب، فسطر السعر بيقع على الملصق التالي.
                     g.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
 
-                    bool isCompact = layout.PageHeight < 80;
-                    float titlePt = isCompact ? 5.5f : 7f;
-                    float itemPt = isCompact ? 6.5f : 8f;
-                    float pricePt = isCompact ? 7f : 9f;
-
-                    using var fontTitle = new Font("Tahoma", titlePt, FontStyle.Bold);
-                    using var fontItem = new Font("Tahoma", itemPt, FontStyle.Bold);
-                    using var fontPrice = new Font("Tahoma", pricePt, FontStyle.Bold);
-                    using var brush = new SolidBrush(Color.Black);
-                    using var sfCenter = new StringFormat { Alignment = StringAlignment.Center };
-
                     int totalWidth = e.PageBounds.Width > 0 ? e.PageBounds.Width : layout.PageWidth;
-                    int titleH = isCompact ? 8 : LabelLayout.TitleLine;
-                    int nameH = isCompact ? 9 : LabelLayout.NameLine;
-                    int footerH = isCompact ? 10 : LabelLayout.FooterLine;
+                    float pad = 4f;
+                    float innerWidth = Math.Max(40f, totalWidth - pad * 2);
 
-                    if (layout.HasTitle)
+                    using var brush = new SolidBrush(Color.Black);
+                    using var sfRight = MakeFormat(StringAlignment.Near, true);    // عربي: Near = اليمين
+                    using var sfLeft = MakeFormat(StringAlignment.Near, false);    // أرقام/إنجليزي: Near = اليسار
+                    using var sfCenterAr = MakeFormat(StringAlignment.Center, true);
+                    using var sfCenterEn = MakeFormat(StringAlignment.Center, false);
+
+                    // 1) السطر العلوي: اسم الصيدلية (يمين) + التليفون/الصلاحية (يسار)
+                    if (pharmacyName.Length > 0 || headerLeft.Length > 0)
                     {
-                        g.DrawString(titleLine, fontTitle, brush, new RectangleF(0, layout.TitleY, totalWidth, titleH), sfCenter);
+                        float rightW = headerLeft.Length > 0 ? innerWidth * 0.62f : innerWidth;
+                        float leftW = innerWidth - rightW;
+                        using var fontHeader = FitFont(g, pharmacyName, "Tahoma", layout.HeaderPt, 4.5f, rightW - 2f, FontStyle.Bold);
+                        using var fontHeaderLeft = new Font("Tahoma", layout.HeaderPt, FontStyle.Bold);
+                        if (pharmacyName.Length > 0)
+                            g.DrawString(pharmacyName, fontHeader, brush, new RectangleF(pad + leftW, layout.HeaderY, rightW, layout.HeaderH), sfRight);
+                        if (headerLeft.Length > 0)
+                            g.DrawString(headerLeft, fontHeaderLeft, brush, new RectangleF(pad, layout.HeaderY, leftW, layout.HeaderH), sfLeft);
                     }
 
-                    // 2) اسم الدواء
-                    g.DrawString(displayName, fontItem, brush, new RectangleF(0, layout.NameY, totalWidth, nameH), sfCenter);
-
-                    // 3) رسم الباركود Code128 (Set C للأرقام)
+                    // 2) رسم الباركود Code128 (Set C للأرقام) — أعمدة بس، من غير أرقام
                     try
                     {
                         if (!layout.BarcodeFitsWidth(Code128Encoder.TotalModules(barcodeToPrint)))
                             throw new InvalidOperationException("الباركود أعرض من الملصق");
 
                         using var barcodeBmp = Code128BarcodeGenerator.GenerateCode128Bitmap(
-                            barcodeToPrint, height: layout.BarcodeHeightParam, moduleWidth: 1, includeText: layout.BarcodeIncludeText);
+                            barcodeToPrint, height: layout.BarsHeightPx, moduleWidth: 1, includeText: false,
+                            quietZone: ShelfLabelLayout.QuietZonePx, verticalPadding: 0);
                         int bmpWidthUnits = LabelLayout.PixelsToUnits(barcodeBmp.Width);
                         int bmpX = Math.Max(0, (totalWidth - bmpWidthUnits) / 2);
 
@@ -140,18 +171,24 @@ namespace ePrescriptions.App.Services
                         var oldPixelOffset = g.PixelOffsetMode;
                         g.InterpolationMode = InterpolationMode.NearestNeighbor;
                         g.PixelOffsetMode = PixelOffsetMode.Half;
-                        g.DrawImage(barcodeBmp, new Rectangle(bmpX, layout.BarcodeY, bmpWidthUnits, layout.BarcodeBitmapHeightUnits));
+                        g.DrawImage(barcodeBmp, new Rectangle(bmpX, layout.BarcodeY, bmpWidthUnits, layout.BarcodeHeightUnits));
                         g.InterpolationMode = oldInterpolation;
                         g.PixelOffsetMode = oldPixelOffset;
                     }
                     catch (Exception barcodeEx)
                     {
                         Logger.LogInfo($"تعذر رسم الباركود، طُبع النص بدلاً منه: {barcodeEx.Message}", "BarcodeLabelService");
-                        g.DrawString(barcodeToPrint, fontPrice, brush, new RectangleF(0, layout.BarcodeY, totalWidth, 18), sfCenter);
+                        using var fontFallback = new Font("Tahoma", layout.NamePt, FontStyle.Bold);
+                        g.DrawString(barcodeToPrint, fontFallback, brush, new RectangleF(pad, layout.BarcodeY, innerWidth, layout.BarcodeHeightUnits), sfCenterEn);
                     }
 
-                    // 4) السعر وتاريخ الصلاحية (ثابت أسفل الملصق)
-                    g.DrawString(footerText, fontPrice, brush, new RectangleF(0, layout.FooterY, totalWidth, footerH), sfCenter);
+                    // 3) اسم الصنف تحت الباركود (بيصغّر الخط لو طويل بدل ما يتقص)
+                    if (itemName.Length > 0)
+                    {
+                        using var fontName = FitFont(g, itemName, "Tahoma", layout.NamePt, 4.5f, innerWidth - 2f, FontStyle.Bold);
+                        g.DrawString(itemName, fontName, brush, new RectangleF(pad, layout.NameY, innerWidth, layout.NameH),
+                            itemNameIsArabic ? sfCenterAr : sfCenterEn);
+                    }
 
                     pagesPrinted++;
                     e.HasMorePages = pagesPrinted < labelCount;

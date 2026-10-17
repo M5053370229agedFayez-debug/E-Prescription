@@ -341,7 +341,7 @@ namespace ePrescriptions.App.ViewModels
             AddCurrentLineCommand = new RelayCommand(AddCurrentLine);
             RemoveSelectedLineCommand = new RelayCommand(RemoveSelectedLine, () => SelectedLine != null);
             ClearAllLinesCommand = new RelayCommand(ClearAllLines);
-            SaveAndPostCommand = new AsyncRelayCommand(SaveAndPostAsync, () => Lines.Count > 0 && !IsBusy);
+            SaveAndPostCommand = new AsyncRelayCommand(SaveAndPostAsync, () => !IsBusy);
             ExportExcelCommand = new AsyncRelayCommand(ExportExcelAsync, () => Lines.Count > 0 && !IsBusy);
             ExportTemplateCommand = new RelayCommand(ExportTemplate);
             ImportExcelFromPathCommand = new RelayCommand<string>(ImportFromExcelPath);
@@ -353,6 +353,17 @@ namespace ePrescriptions.App.ViewModels
 
             ResetVoucherHeader();
             ResetEntryFields();
+        }
+
+        // تحديث حالة أزرار الاعتماد والتصدير فور تغيّر IsBusy (كانت تبقى معطّلة بعد الاستيراد من Excel)
+        protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            base.OnPropertyChanged(e);
+            if (e.PropertyName == nameof(IsBusy))
+            {
+                SaveAndPostCommand?.NotifyCanExecuteChanged();
+                ExportExcelCommand?.NotifyCanExecuteChanged();
+            }
         }
 
         private void ResetVoucherHeader()

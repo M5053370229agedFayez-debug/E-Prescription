@@ -145,6 +145,9 @@
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="btnBorder" Property="Opacity" Value="0.75" />
                         </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="btnBorder" Property="Opacity" Value="0.4" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

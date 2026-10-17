@@ -49,181 +49,7 @@ namespace ePrescriptions.App.Services
                 printDoc.PrintPage += (sender, e) =>
                 {
                     if (e.Graphics == null) return;
-                    var g = e.Graphics;
-
-                    float y = 10f;
-
-                    using var fontTitle = new Font("Arial", 11, FontStyle.Bold);
-                    using var fontSubTitle = new Font("Arial", 8.5f, FontStyle.Regular);
-                    using var fontRegular = new Font("Arial", 8f, FontStyle.Regular);
-                    using var fontBold = new Font("Arial", 8f, FontStyle.Bold);
-                    using var fontLargeBold = new Font("Arial", 12f, FontStyle.Bold);
-
-                    using var sfCenter = new StringFormat
-                    {
-                        Alignment = StringAlignment.Center,
-                        LineAlignment = StringAlignment.Center,
-                        FormatFlags = StringFormatFlags.DirectionRightToLeft
-                    };
-
-                    using var sfRtl = new StringFormat
-                    {
-                        Alignment = StringAlignment.Near,
-                        LineAlignment = StringAlignment.Center,
-                        FormatFlags = StringFormatFlags.DirectionRightToLeft
-                    };
-
-                    using var sfLtr = new StringFormat
-                    {
-                        Alignment = StringAlignment.Far,
-                        LineAlignment = StringAlignment.Center
-                    };
-
-                    // 1) اسم الصيدلية والترويسة
-                    g.DrawString(settings.PharmacyNameAr, fontTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 20), sfCenter);
-                    y += 20;
-
-                    if (!string.IsNullOrWhiteSpace(settings.PharmacyNameEn))
-                    {
-                        g.DrawString(settings.PharmacyNameEn, fontSubTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                        y += 16;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(settings.ResponsiblePharmacist))
-                    {
-                        g.DrawString($"الصيدلي المسؤول: {settings.ResponsiblePharmacist}", fontSubTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                        y += 16;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(settings.Address))
-                    {
-                        g.DrawString(settings.Address, fontSubTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                        y += 16;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(settings.TaxNumber))
-                    {
-                        g.DrawString($"رقم التسجيل الضريبي: {settings.TaxNumber}", fontSubTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                        y += 16;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(settings.CommercialRegister))
-                    {
-                        g.DrawString($"س.ت: {settings.CommercialRegister}", fontSubTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                        y += 16;
-                    }
-
-                    y += 4;
-                    DrawDottedLine(g, y, marginX, marginX + printWidth);
-                    y += 8;
-
-                    // 2) بيانات الفاتورة
-                    string invoiceTypeStr = ReceiptText.InvoiceTitle(invoice.Type, invoice.PaymentMethod);
-                    g.DrawString(invoiceTypeStr, fontBold, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                    y += 18;
-
-                    g.DrawString($"رقم الفاتورة: {invoice.InvoiceNumber}", fontBold, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                    y += 16;
-
-                    g.DrawString($"التاريخ: {DbDate.SlashMinutes(invoice.Date)}", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                    y += 16;
-
-                    if (!string.IsNullOrWhiteSpace(invoice.CustomerName) && invoice.CustomerName != "عميل نقدي")
-                    {
-                        g.DrawString($"العميل: {invoice.CustomerName}", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                        y += 16;
-                    }
-
-                    y += 4;
-                    DrawDottedLine(g, y, marginX, marginX + printWidth);
-                    y += 8;
-
-                    // 3) جدول الأصناف
-                    g.DrawString("الصنف", fontBold, Brushes.Black, new RectangleF(marginX, y, printWidth * 0.45f, 16), sfRtl);
-                    g.DrawString("الكمية", fontBold, Brushes.Black, new RectangleF(marginX + printWidth * 0.45f, y, printWidth * 0.20f, 16), sfCenter);
-                    g.DrawString("السعر (ج.م)", fontBold, Brushes.Black, new RectangleF(marginX + printWidth * 0.65f, y, printWidth * 0.35f, 16), sfLtr);
-                    y += 18;
-
-                    foreach (var item in invoice.Items)
-                    {
-                        // اسم الصنف الطويل بيتلف على أكثر من سطر
-                        float nameHeight = Math.Max(16f, g.MeasureString(item.ItemNameAr, fontBold, (int)printWidth, sfRtl).Height + 2f);
-                        g.DrawString(item.ItemNameAr, fontBold, Brushes.Black, new RectangleF(marginX, y, printWidth, nameHeight), sfRtl);
-                        y += nameHeight;
-
-                        string qtyDetail = $"{item.QuantitySold} x {(item.UnitPricePiastres / 100.0):N2}";
-                        g.DrawString(qtyDetail, fontRegular, Brushes.DarkSlateGray, new RectangleF(marginX, y, printWidth * 0.60f, 14), sfRtl);
-                        g.DrawString($"{(item.TotalPiastres / 100.0):N2} ج.م", fontBold, Brushes.Black, new RectangleF(marginX + printWidth * 0.60f, y, printWidth * 0.40f, 14), sfLtr);
-                        y += 16;
-                    }
-
-                    y += 4;
-                    DrawDottedLine(g, y, marginX, marginX + printWidth);
-                    y += 8;
-
-                    // 4) المجاميع المالية
-                    g.DrawString($"المجموع قبل الضريبة: {(invoice.SubtotalPiastres / 100.0):N2} ج.م", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                    y += 16;
-
-                    if (invoice.DiscountPiastres > 0)
-                    {
-                        g.DrawString($"إجمالي الخصم: {(invoice.DiscountPiastres / 100.0):N2} ج.م", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                        y += 16;
-                    }
-
-                    g.DrawString($"ضريبة القيمة المضافة: {(invoice.VatPiastres / 100.0):N2} ج.م", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                    y += 18;
-
-                    // الإجمالي النهائي
-                    g.DrawString($"صافي المستحق: {(invoice.TotalPiastres / 100.0):N2} ج.م", fontLargeBold, Brushes.Black, new RectangleF(marginX, y, printWidth, 24), sfCenter);
-                    y += 24;
-
-                    g.DrawString($"المدفوع: {(invoice.PaidPiastres / 100.0):N2} ج.م   |   المتبقي: {(invoice.RemainingPiastres / 100.0):N2} ج.م", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                    y += 20;
-
-                    // تفصيل الدفع المقسّم: سطر لكل طريقة بمبلغها
-                    if (invoice.IsSplitPayment)
-                    {
-                        foreach (var part in invoice.Payments)
-                        {
-                            g.DrawString($"{InvoicePayment.MethodName(part.Method)}: {(part.AmountPiastres / 100.0):N2} ج.م", fontRegular, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfRtl);
-                            y += 16;
-                        }
-                        y += 4;
-                    }
-
-                    // 5) رمز الاستجابة السريع البسيط (إن فُعّل من الإعدادات)
-                    if (settings.EnableQrCode)
-                    {
-                        try
-                        {
-                            string qrText = !string.IsNullOrEmpty(invoice.QrCodeText)
-                                ? invoice.QrCodeText!
-                                : EgyptQrHelper.BuildSimpleQrText(invoice.InvoiceNumber, invoice.Date, invoice.TotalPiastres, settings.TaxNumber);
-
-                            using var qrGen = new QRCodeGenerator();
-                            using var qrData = qrGen.CreateQrCode(qrText, QRCodeGenerator.ECCLevel.M);
-                            using var qr = new QRCode(qrData);
-                            using var qrBmp = qr.GetGraphic(3);
-
-                            float qrSize = 90f;
-                            float qrX = marginX + (printWidth - qrSize) / 2f;
-                            g.DrawImage(qrBmp, qrX, y, qrSize, qrSize);
-                            y += qrSize + 6;
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex, "ThermalReceiptPrinter (طباعة رمز QR)");
-                        }
-                    }
-
-                    // تذييل الإيصال
-                    g.DrawString("شكراً لزيارتكم - نتمنى لكم دوام الصحة والعافية", fontSubTitle, Brushes.Black, new RectangleF(marginX, y, printWidth, 16), sfCenter);
-                    y += 18;
-                    g.DrawString(AppBranding.ProductByline, fontRegular, Brushes.Gray, new RectangleF(marginX, y, printWidth, 14), sfCenter);
-                    y += 14;
-                    g.DrawString(AppBranding.Copyright, fontRegular, Brushes.Gray, new RectangleF(marginX, y, printWidth, 14), sfCenter);
-
+                    DrawInvoice(e.Graphics, invoice, settings, marginX, printWidth);
                     e.HasMorePages = false;
                 };
 
@@ -360,6 +186,10 @@ namespace ePrescriptions.App.Services
                         LineAlignment = StringAlignment.Center
                     };
 
+                    sfCenter.SetDigitSubstitution(1033, StringDigitSubstitute.None);
+                    sfRtl.SetDigitSubstitution(1033, StringDigitSubstitute.None);
+                    sfLtr.SetDigitSubstitution(1033, StringDigitSubstitute.None);
+
                     g.DrawString(settings.PharmacyNameAr, fontTitle, Brushes.Black, new RectangleF(marginLeft, y, printWidth, 20), sfCenter);
                     y += 20;
 
@@ -456,6 +286,210 @@ namespace ePrescriptions.App.Services
                 Logger.LogException(ex, "ThermalReceiptPrinter.PrintShiftReport");
                 return false;
             }
+        }
+
+        private static StringFormat MakeFormat(StringAlignment alignment, bool rtl)
+        {
+            var sf = new StringFormat { Alignment = alignment, LineAlignment = StringAlignment.Center };
+            if (rtl) sf.FormatFlags = StringFormatFlags.DirectionRightToLeft;
+            // أرقام لاتينية (0123) بدل الهندية (٠١٢٣) مهما كانت لغة ويندوز، وده كمان بيمنع قلب ترتيب الأرقام في السطور المختلطة
+            sf.SetDigitSubstitution(1033, StringDigitSubstitute.None);
+            return sf;
+        }
+
+        /// <summary>
+        /// يرسم الفاتورة على شكل الإيصال المرجعي: صندوق الترويسة (اسم الصيدلية، التليفون، التاريخ والرقم)،
+        /// جدول الأصناف بخطوط (الكمية | السعر | الخصم | الجملة)، ثم صندوق المجاميع. بيرجع آخر y مرسوم.
+        /// </summary>
+        private static float DrawInvoice(Graphics g, Invoice invoice, PharmacySettings settings, float x, float w)
+        {
+            float right = x + w;
+            float y = 6f;
+
+            using var fTiny = new Font("Arial", 6.5f, FontStyle.Regular);
+            using var fSmall = new Font("Arial", 8f, FontStyle.Regular);
+            using var fBold = new Font("Arial", 8f, FontStyle.Bold);
+            using var fName = new Font("Arial", 13f, FontStyle.Bold);
+            using var fNet = new Font("Arial", 11f, FontStyle.Bold);
+            using var pen = new Pen(Color.Black, 1f);
+
+            using var sfCenter = MakeFormat(StringAlignment.Center, true);      // عربي في النص
+            using var sfRight = MakeFormat(StringAlignment.Near, true);         // عربي على اليمين
+            using var sfNumCenter = MakeFormat(StringAlignment.Center, false);  // أرقام في النص
+            using var sfNumLeft = MakeFormat(StringAlignment.Near, false);      // إنجليزي/أرقام على اليسار
+
+            // ===== 1) صندوق الترويسة =====
+            float headerTop = y;
+            y += 3f;
+            g.DrawString("Print time : " + DbDate.Minutes(DateTime.Now), fTiny, Brushes.Black, new RectangleF(x + 4, y, w - 8, 12), sfNumLeft);
+            y += 14f;
+
+            ReceiptText.SplitPharmacyName(settings.PharmacyNameAr, out string namePrefix, out string bigName);
+            if (namePrefix.Length > 0)
+            {
+                g.DrawString(namePrefix, fSmall, Brushes.Black, new RectangleF(x, y, w, 14), sfCenter);
+                y += 14f;
+            }
+            if (bigName.Length > 0)
+            {
+                float nameH = Math.Max(22f, g.MeasureString(bigName, fName, (int)(w - 8), sfCenter).Height + 2f);
+                g.DrawString(bigName, fName, Brushes.Black, new RectangleF(x + 4, y, w - 8, nameH), sfCenter);
+                y += nameH;
+            }
+
+            if (!string.IsNullOrWhiteSpace(settings.PharmacyNameEn))
+            {
+                g.DrawString(settings.PharmacyNameEn, fSmall, Brushes.Black, new RectangleF(x, y, w, 14), sfNumCenter);
+                y += 14f;
+            }
+            if (!string.IsNullOrWhiteSpace(settings.ResponsiblePharmacist))
+            {
+                g.DrawString($"الصيدلي المسؤول: {settings.ResponsiblePharmacist}", fSmall, Brushes.Black, new RectangleF(x, y, w, 14), sfCenter);
+                y += 14f;
+            }
+            if (!string.IsNullOrWhiteSpace(settings.Address))
+            {
+                g.DrawString(settings.Address, fSmall, Brushes.Black, new RectangleF(x, y, w, 14), sfCenter);
+                y += 14f;
+            }
+            if (!string.IsNullOrWhiteSpace(settings.TaxNumber))
+            {
+                g.DrawString($"رقم التسجيل الضريبي: {settings.TaxNumber}", fSmall, Brushes.Black, new RectangleF(x, y, w, 14), sfCenter);
+                y += 14f;
+            }
+            if (!string.IsNullOrWhiteSpace(settings.CommercialRegister))
+            {
+                g.DrawString($"س.ت: {settings.CommercialRegister}", fSmall, Brushes.Black, new RectangleF(x, y, w, 14), sfCenter);
+                y += 14f;
+            }
+            if (!string.IsNullOrWhiteSpace(settings.Phone))
+            {
+                g.DrawString("Tel:" + settings.Phone.Trim(), fBold, Brushes.Black, new RectangleF(x, y, w, 16), sfNumCenter);
+                y += 16f;
+            }
+
+            y += 2f;
+            // عنوان الإيصال حسب النوع (مرتجع / آجل / تأمين ...)
+            g.DrawString(ReceiptText.InvoiceTitle(invoice.Type, invoice.PaymentMethod), fBold, Brushes.Black, new RectangleF(x, y, w, 16), sfCenter);
+            y += 17f;
+            g.DrawString($"تاريخ الفاتورة: {DbDate.Date(invoice.Date)}   {invoice.Date.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)}", fSmall, Brushes.Black, new RectangleF(x + 4, y, w - 8, 15), sfRight);
+            y += 15f;
+            g.DrawString($"رقم الفاتورة: {invoice.InvoiceNumber}", fBold, Brushes.Black, new RectangleF(x + 4, y, w - 8, 15), sfRight);
+            y += 15f;
+            if (!string.IsNullOrWhiteSpace(invoice.CustomerName) && invoice.CustomerName != "عميل نقدي")
+            {
+                g.DrawString($"العميل: {invoice.CustomerName}", fSmall, Brushes.Black, new RectangleF(x + 4, y, w - 8, 15), sfRight);
+                y += 15f;
+            }
+            y += 3f;
+            g.DrawRectangle(pen, x, headerTop, w, y - headerTop);
+
+            // ===== 2) جدول الأصناف =====
+            y += 6f;
+            float tableTop = y;
+            g.DrawString("اسم الصنف", fBold, Brushes.Black, new RectangleF(x, y, w, 16), sfCenter);
+            y += 16f;
+            g.DrawLine(pen, x, y, right, y);
+
+            // الأعمدة من الشمال لليمين: الكمية | السعر | الخصم | الجملة
+            float cQty = w * 0.22f, cPrice = w * 0.26f, cDisc = w * 0.20f;
+            float xQty = x, xPrice = xQty + cQty, xDisc = xPrice + cPrice, xTot = xDisc + cDisc;
+            float cTot = right - xTot;
+            g.DrawString("الكمية", fSmall, Brushes.Black, new RectangleF(xQty, y, cQty, 15), sfCenter);
+            g.DrawString("السعر", fSmall, Brushes.Black, new RectangleF(xPrice, y, cPrice, 15), sfCenter);
+            g.DrawString("خصم", fSmall, Brushes.Black, new RectangleF(xDisc, y, cDisc, 15), sfCenter);
+            g.DrawString("الجملة", fSmall, Brushes.Black, new RectangleF(xTot, y, cTot, 15), sfCenter);
+            y += 16f;
+            g.DrawLine(pen, x, y, right, y);
+
+            foreach (var item in invoice.Items)
+            {
+                string itemName = item.ItemNameAr ?? string.Empty;
+                // اسم الصنف الطويل بيتلف على أكثر من سطر
+                float nh = Math.Max(15f, g.MeasureString(itemName, fBold, (int)(w - 6), sfCenter).Height + 3f);
+                g.DrawString(itemName, fBold, Brushes.Black, new RectangleF(x + 3, y, w - 6, nh), sfCenter);
+                y += nh;
+
+                long gross = item.UnitPricePiastres * item.QuantitySold;
+                int pct = ReceiptText.DiscountPercent(gross, item.DiscountPiastres);
+                string qtyText = $"{item.QuantitySold.ToString(System.Globalization.CultureInfo.InvariantCulture)} {UnitBreakdownHelper.UnitLevelName(item.UnitLevel)}";
+
+                g.DrawString(qtyText, fSmall, Brushes.Black, new RectangleF(xQty, y, cQty, 15), sfCenter);
+                g.DrawString(ReceiptText.Amount(item.UnitPricePiastres), fSmall, Brushes.Black, new RectangleF(xPrice, y, cPrice, 15), sfNumCenter);
+                g.DrawString(pct.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%", fSmall, Brushes.Black, new RectangleF(xDisc, y, cDisc, 15), sfNumCenter);
+                g.DrawString(ReceiptText.Amount(item.TotalPiastres), fBold, Brushes.Black, new RectangleF(xTot, y, cTot, 15), sfNumCenter);
+                y += 16f;
+                g.DrawLine(pen, x, y, right, y);
+            }
+            g.DrawRectangle(pen, x, tableTop, w, y - tableTop);
+
+            // ===== 3) صندوق المجاميع =====
+            y += 6f;
+            float totalsTop = y;
+            float valW = w * 0.40f;
+
+            void TotalRow(string label, long piastres, Font font, float rowH)
+            {
+                g.DrawString(label, font, Brushes.Black, new RectangleF(x + valW + 4, y, w - valW - 8, rowH), sfRight);
+                g.DrawString(ReceiptText.Amount(piastres), font, Brushes.Black, new RectangleF(x, y, valW, rowH), sfNumCenter);
+                y += rowH;
+                g.DrawLine(pen, x, y, right, y);
+            }
+
+            TotalRow("القيمة الأولية", invoice.SubtotalPiastres, fSmall, 20f);
+            if (invoice.DiscountPiastres > 0)
+                TotalRow("إجمالي الخصم", invoice.DiscountPiastres, fSmall, 20f);
+            if (invoice.VatPiastres > 0)
+                TotalRow("ضريبة القيمة المضافة", invoice.VatPiastres, fSmall, 20f);
+            TotalRow("صافي القيمة", invoice.TotalPiastres, fNet, 26f);
+            TotalRow("المبلغ المدفوع", invoice.PaidPiastres, fBold, 22f);
+            if (invoice.RemainingPiastres > 0)
+                TotalRow("المتبقي", invoice.RemainingPiastres, fBold, 22f);
+
+            // تفصيل الدفع المقسّم: سطر لكل طريقة بمبلغها
+            if (invoice.IsSplitPayment)
+            {
+                foreach (var part in invoice.Payments)
+                    TotalRow(InvoicePayment.MethodName(part.Method), part.AmountPiastres, fSmall, 18f);
+            }
+
+            g.DrawLine(pen, x + valW, totalsTop, x + valW, y);
+            g.DrawRectangle(pen, x, totalsTop, w, y - totalsTop);
+            y += 6f;
+
+            // ===== 4) رمز الاستجابة السريع البسيط (إن فُعّل من الإعدادات) =====
+            if (settings.EnableQrCode)
+            {
+                try
+                {
+                    string qrText = !string.IsNullOrEmpty(invoice.QrCodeText)
+                        ? invoice.QrCodeText!
+                        : EgyptQrHelper.BuildSimpleQrText(invoice.InvoiceNumber, invoice.Date, invoice.TotalPiastres, settings.TaxNumber);
+
+                    using var qrGen = new QRCodeGenerator();
+                    using var qrData = qrGen.CreateQrCode(qrText, QRCodeGenerator.ECCLevel.M);
+                    using var qr = new QRCode(qrData);
+                    using var qrBmp = qr.GetGraphic(3);
+
+                    float qrSize = 90f;
+                    float qrX = x + (w - qrSize) / 2f;
+                    g.DrawImage(qrBmp, qrX, y, qrSize, qrSize);
+                    y += qrSize + 6f;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException(ex, "ThermalReceiptPrinter (طباعة رمز QR)");
+                }
+            }
+
+            // ===== 5) التذييل =====
+            g.DrawString("شكراً لزيارتكم - نتمنى لكم دوام الصحة والعافية", fSmall, Brushes.Black, new RectangleF(x, y, w, 16), sfCenter);
+            y += 18f;
+            g.DrawString(AppBranding.ProductByline, fTiny, Brushes.Gray, new RectangleF(x, y, w, 14), sfNumCenter);
+            y += 14f;
+            g.DrawString(AppBranding.Copyright, fTiny, Brushes.Gray, new RectangleF(x, y, w, 14), sfNumCenter);
+            y += 14f;
+            return y;
         }
 
         private static void DrawDottedLine(Graphics g, float y, float x1, float x2)
