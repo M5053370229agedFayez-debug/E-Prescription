@@ -1,0 +1,107 @@
+name: Build and Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, Test and Package
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild environment
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore NuGet packages for solution
+        run: msbuild e_prescriptions.sln /t:Restore
+
+      - name: Build solution in Release configuration
+        run: msbuild e_prescriptions.sln /p:Configuration=Release /p:Platform="Any CPU" /m /v:m
+
+      - name: Ensure SQLite Interop native binaries
+        shell: pwsh
+        run: |
+          $appBin = "src\ePrescriptions.App\bin\Release\net48"
+          $testsBin = "tests\ePrescriptions.Tests\bin\Release\net48"
+          $nugetRoot = Join-Path $env:USERPROFILE ".nuget\packages\stub.system.data.sqlite.core.netframework"
+          if (-not (Test-Path "$appBin\x86\SQLite.Interop.dll") -or -not (Test-Path "$appBin\x64\SQLite.Interop.dll")) {
+              Write-Host "Locating SQLite.Interop.dll in NuGet cache..."
+              $interopFiles = Get-ChildItem -Path $nugetRoot -Recurse -Filter "SQLite.Interop.dll" -ErrorAction Stop
+              $x86Dll = $interopFiles | Where-Object { $_.FullName -like "*\x86\SQLite.Interop.dll" } | Select-Object -First 1
+              $x64Dll = $interopFiles | Where-Object { $_.FullName -like "*\x64\SQLite.Interop.dll" } | Select-Object -First 1
+              if (-not $x86Dll -or -not $x64Dll) {
+                  throw "Could not find x86 or x64 SQLite.Interop.dll in NuGet cache ($nugetRoot)"
+              }
+              New-Item -ItemType Directory -Force -Path "$appBin\x86", "$appBin\x64", "$testsBin\x86", "$testsBin\x64" | Out-Null
+              Copy-Item $x86Dll.FullName "$appBin\x86\SQLite.Interop.dll" -Force
+              Copy-Item $x64Dll.FullName "$appBin\x64\SQLite.Interop.dll" -Force
+              Copy-Item $x86Dll.FullName "$testsBin\x86\SQLite.Interop.dll" -Force
+              Copy-Item $x64Dll.FullName "$testsBin\x64\SQLite.Interop.dll" -Force
+          }
+          if (-not (Test-Path "$appBin\x86\SQLite.Interop.dll") -or -not (Test-Path "$appBin\x64\SQLite.Interop.dll")) {
+              throw "SQLite.Interop.dll missing from $appBin!"
+          }
+          Write-Host "SQLite.Interop.dll verified successfully."
+
+      - name: Run all unit and integration tests
+        run: dotnet test tests/ePrescriptions.Tests/ePrescriptions.Tests.csproj -c Release --no-build --logger "trx;LogFileName=test_results.trx"
+
+      - name: Verify test execution Counters and pass criteria
+        shell: pwsh
+        run: |
+          $trxFiles = Get-ChildItem -Path "tests\ePrescriptions.Tests\TestResults" -Filter "*.trx" -Recurse
+          if (-not $trxFiles) {
+              throw "No test results file (.trx) found in TestResults!"
+          }
+          [xml]$trx = Get-Content $trxFiles[0].FullName
+          $counters = $trx.TestRun.ResultSummary.Counters
+          $executed = [int]$counters.executed
+          $failed = [int]$counters.failed
+          Write-Host "Total tests executed: $executed, Failed: $failed"
+          if ($executed -eq 0) {
+              throw "Zero tests were executed! Test adapter may have failed to discover tests."
+          }
+          if ($failed -gt 0) {
+              throw "One or more tests failed ($failed failed tests)!"
+          }
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: tests/ePrescriptions.Tests/TestResults
+
+      - name: Compile Inno Setup installer package
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
+              Write-Host "Installing Inno Setup 6 via Chocolatey..."
+              choco install innosetup -y --no-progress
+          }
+          New-Item -ItemType Directory -Force -Path "dist\installer" | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\e_prescriptions_installer.iss
+
+      - name: Upload installer setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: e_prescriptions_Setup_v1.0.0
+          path: dist/installer
