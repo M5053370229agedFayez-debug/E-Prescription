@@ -73,6 +73,39 @@ namespace ePrescriptions.App.Services
             return sf;
         }
 
+        /// <summary>طباعة الاستيكر الصغير: كل صفحة بتشيل StackCount ورقة، والأخيرة ممكن تبقى ورقة واحدة بس.</summary>
+        private static void PrintMini(MiniLabelLayout mini, string printerName, string pharmacyName, string headerLeft,
+            string barcode, string itemName, bool itemNameIsArabic, int labelCount)
+        {
+            using var printDoc = new PrintDocument();
+            if (!string.IsNullOrEmpty(printerName))
+                printDoc.PrinterSettings.PrinterName = printerName;
+
+            printDoc.DefaultPageSettings.PaperSize = ResolvePaperSize(printDoc.PrinterSettings, mini.PageWidth, mini.PageHeight);
+            printDoc.DefaultPageSettings.Landscape = false;
+            printDoc.OriginAtMargins = false;
+            printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
+
+            int remaining = labelCount;
+            printDoc.PrintPage += (s, e) =>
+            {
+                var g = e.Graphics;
+                if (g == null) return;
+
+                // نقطة الأصل بتبدأ بعد الهامش الصلب للطابعة؛ بنرجّعها لحافة الورقة
+                g.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
+
+                for (int slot = 0; slot < mini.StackCount && remaining > 0; slot++)
+                {
+                    MiniLabelRenderer.DrawLabel(g, mini, slot, pharmacyName, headerLeft, barcode, itemName, itemNameIsArabic);
+                    remaining--;
+                }
+                e.HasMorePages = remaining > 0;
+            };
+
+            printDoc.Print();
+        }
+
         public bool PrintBarcodeLabel(Item item, ItemBatch? batch, int labelCount, out string errorMessage)
         {
             errorMessage = string.Empty;
@@ -103,6 +136,18 @@ namespace ePrescriptions.App.Services
                 // اسم الصنف تحت الباركود: الاسم الإنجليزي لو موجود (زي الملصق المرجعي) وإلا العربي
                 string itemName = !string.IsNullOrWhiteSpace(item.NameEn) ? item.NameEn.Trim() : (item.NameAr ?? string.Empty).Trim();
                 bool itemNameIsArabic = string.IsNullOrWhiteSpace(item.NameEn);
+
+                // استيكر صغير (أقل من 12 مم ارتفاع، زي 30×7): الصفحة = ورقتين لاصقين فوق بعض، وكل ورقة بتتقص على حدودها
+                if (MiniLabelLayout.IsMini(settings.LabelHeightMm))
+                {
+                    var mini = MiniLabelLayout.Compute(settings.LabelWidthMm, settings.LabelHeightMm);
+                    if (!mini.Fits)
+                        Logger.LogInfo($"ارتفاع الاستيكر {settings.LabelHeightMm} مم صغير جداً؛ الباركود هيطلع بأدنى ارتفاع.", "BarcodeLabelService");
+                    string miniPhone = isBatchLabel ? headerLeft : MiniLabelRenderer.ToArabicIndicDigits(phone);
+                    PrintMini(mini, printerName, pharmacyName, miniPhone, barcodeToPrint, itemName, itemNameIsArabic, labelCount);
+                    Logger.LogInfo($"تمت طباعة {labelCount} ملصق باركود (استيكر صغير) للصنف {item.Code} بنجاح.", "BarcodeLabelService");
+                    return true;
+                }
 
                 var layout = ShelfLabelLayout.Compute(settings.LabelWidthMm, settings.LabelHeightMm);
                 if (!layout.Fits)

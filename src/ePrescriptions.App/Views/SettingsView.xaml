@@ -163,6 +163,9 @@
                                 </StackPanel>
                             </Grid>
 
+                            <TextBlock Text="استيكر أقل من 12 مم ارتفاع (مثلاً 30 × 7): البرنامج بيطبع ورقتين فوق بعض في كل صفحة (فراغ 1 مم بين كل زوجين) وكل ورقة متوسّطة ومقصوصة على حدودها. اضبط مقاس الورق في تعريف الطابعة على 30 × 15 مم."
+                                       Foreground="#6B7F94" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,8" />
+
                             <!-- زر تجربة الطابعة -->
                             <Button Command="{Binding TestReceiptPrinterCommand}" Style="{StaticResource PosSecondaryButton}" Height="36" Padding="16,0" HorizontalAlignment="Left">
                                 <TextBlock Text="طباعة تذكرة اختبارية على طابعة الكاشير" />
