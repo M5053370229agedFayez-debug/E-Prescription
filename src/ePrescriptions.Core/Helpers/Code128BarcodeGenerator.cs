@@ -14,7 +14,7 @@ namespace ePrescriptions.Core.Helpers
         /// <summary>
         /// توليد صورة الباركود بصيغة Bitmap بدقة محددة مع نص الصنف وأرقام الباركود أسفله
         /// </summary>
-        public static Bitmap GenerateCode128Bitmap(string text, int height = 80, int moduleWidth = 2, bool includeText = true, int quietZone = 15)
+        public static Bitmap GenerateCode128Bitmap(string text, int height = 80, int moduleWidth = 2, bool includeText = true, int quietZone = 15, int verticalPadding = 5)
         {
             if (string.IsNullOrEmpty(text)) text = "000000";
 
@@ -46,7 +46,7 @@ namespace ePrescriptions.Core.Helpers
                     int width = (ch - '0') * moduleWidth;
                     if (isBar)
                     {
-                        g.FillRectangle(Brushes.Black, currentX, 5, width, height - 10);
+                        g.FillRectangle(Brushes.Black, currentX, verticalPadding, width, height - 2 * verticalPadding);
                     }
                     currentX += width;
                     isBar = !isBar;
