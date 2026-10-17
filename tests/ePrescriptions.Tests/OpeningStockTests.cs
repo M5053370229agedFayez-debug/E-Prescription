@@ -226,5 +226,128 @@ namespace ePrescriptions.Tests
             app.Should().Contain("AddTransient<OpeningStockViewModel>()");
             app.Should().Contain("AddSingleton<OpeningStockRepository>()");
         }
+
+        // ===== حفظ السند: FOREIGN KEY بعد فشل سابق / تكرار الباركود / أصناف من غير باركود =====
+        private static (DatabaseContext db, OpeningStockRepository repo) NewOpeningDb()
+        {
+            var db = new DatabaseContext(":memory:");
+            db.InitializeAndMigrate(seedData: false);
+            return (db, new OpeningStockRepository(db, new ItemRepository(db)));
+        }
+
+        private static OpeningStockVoucherLine NewLine(string barcode, string name, string batch)
+        {
+            var l = new OpeningStockVoucherLine
+            {
+                ItemBarcode = barcode,
+                ItemNameAr = name,
+                StripsPerBox = 1,
+                PiecesPerStrip = 10,
+                BatchNumber = batch,
+                ExpiryDate = new DateTime(2028, 1, 31),
+                QuantityBoxes = 2,
+                CostPriceBoxPounds = 10m,
+                RetailPriceBoxPounds = 15m
+            };
+            l.RecalculateLine();
+            return l;
+        }
+
+        private static void Exec(DatabaseContext db, string sql)
+        {
+            using var conn = db.CreateConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+
+        private static long Count(DatabaseContext db, string sql)
+        {
+            using var conn = db.CreateConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            return Convert.ToInt64(cmd.ExecuteScalar() ?? 0);
+        }
+
+        [Fact]
+        public void SaveVoucher_SameNewBarcodeInTwoRows_ShouldCreateOneItemWithTwoBatches()
+        {
+            var (db, repo) = NewOpeningDb();
+            var v = new OpeningStockVoucher { VoucherDate = new DateTime(2026, 10, 18) };
+            v.Lines.Add(NewLine("6220001", "صنف مكرر", "B1"));
+            v.Lines.Add(NewLine("6220001", "صنف مكرر", "B2"));
+
+            repo.SaveVoucher(v);
+
+            Count(db, "SELECT COUNT(*) FROM Items WHERE Barcode = '6220001'").Should().Be(1);
+            Count(db, "SELECT COUNT(*) FROM ItemBatches").Should().Be(2);
+        }
+
+        [Fact]
+        public void SaveVoucher_SeveralNewItemsWithoutBarcode_ShouldNotCollideOnUniqueBarcode()
+        {
+            var (db, repo) = NewOpeningDb();
+            var v = new OpeningStockVoucher { VoucherDate = new DateTime(2026, 10, 18) };
+            v.Lines.Add(NewLine("", "صنف أ", "B1"));
+            v.Lines.Add(NewLine("", "صنف ب", "B1"));
+
+            repo.SaveVoucher(v);
+
+            Count(db, "SELECT COUNT(*) FROM Items").Should().Be(2);
+        }
+
+        [Fact]
+        public void SaveVoucher_StaleItemId_ShouldNotFailOnForeignKey()
+        {
+            var (db, repo) = NewOpeningDb();
+            var v = new OpeningStockVoucher { VoucherDate = new DateTime(2026, 10, 18) };
+            var line = NewLine("6220002", "صنف قديم المعرّف", "B1");
+            line.ItemId = 9999; // معرّف لصنف مش موجود (زي اللي بيتبقى بعد Rollback لمحاولة فاشلة)
+            v.Lines.Add(line);
+
+            repo.SaveVoucher(v);
+
+            line.ItemId.Should().NotBe(9999);
+            Count(db, "SELECT COUNT(*) FROM Items WHERE Barcode = '6220002'").Should().Be(1);
+        }
+
+        [Fact]
+        public void SaveVoucher_AfterFailedAttempt_ShouldRestoreLinesSoRetrySucceeds()
+        {
+            var (db, repo) = NewOpeningDb();
+            var v = new OpeningStockVoucher { VoucherDate = new DateTime(2026, 10, 18) };
+            v.Lines.Add(NewLine("6220003", "صنف سليم", "B1"));
+            var bad = NewLine("6220004", "صنف هيفشل", "B2");
+            bad.ItemCode = "FAIL";
+            v.Lines.Add(bad);
+
+            // trigger بيرفض حركة التسوية للسطر التاني عشان الحفظ يفشل بعد ما السطر الأول يتعالج
+            Exec(db, "CREATE TRIGGER TR_TestFail BEFORE INSERT ON StockAdjustments WHEN NEW.ItemCode = 'FAIL' BEGIN SELECT RAISE(ABORT, 'forced failure'); END;");
+            Action first = () => repo.SaveVoucher(v);
+            first.Should().Throw<Exception>();
+
+            v.Lines[0].ItemId.Should().Be(0, "الـ Rollback لازم يرجّع ItemId الأصلي");
+            bad.ItemId.Should().Be(0);
+            Count(db, "SELECT COUNT(*) FROM Items").Should().Be(0);
+
+            Exec(db, "DROP TRIGGER TR_TestFail;");
+            repo.SaveVoucher(v);
+            Count(db, "SELECT COUNT(*) FROM Items").Should().Be(2);
+        }
+
+        [Fact]
+        public void SaveVoucher_InactiveExistingItemWithSameBarcode_ShouldReuseAndReactivate()
+        {
+            var (db, repo) = NewOpeningDb();
+            var items = new ItemRepository(db);
+            int id = items.SaveItem(new Item { Code = "OLD1", Barcode = "6220005", NameAr = "موقوف", StripsPerBox = 1, PiecesPerStrip = 10, RetailPriceBoxPiastres = 1000, CostPriceBoxPiastres = 800, IsActive = false });
+
+            var v = new OpeningStockVoucher { VoucherDate = new DateTime(2026, 10, 18) };
+            v.Lines.Add(NewLine("6220005", "موقوف", "B1"));
+            repo.SaveVoucher(v);
+
+            Count(db, "SELECT COUNT(*) FROM Items WHERE Barcode = '6220005'").Should().Be(1);
+            Count(db, $"SELECT IsActive FROM Items WHERE Id = {id}").Should().Be(1);
+        }
     }
 }
