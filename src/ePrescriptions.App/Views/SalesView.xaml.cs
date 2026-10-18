@@ -62,8 +62,7 @@ namespace ePrescriptions.App.Views
                     list.ScrollIntoView(list.SelectedItem);
                     e.Handled = true;
                     break;
-                case System.Windows.Input.Key.Return:
-                case System.Windows.Input.Key.Enter:
+                case System.Windows.Input.Key.Return: // Key.Enter هو نفس القيمة (alias) فمينفعش يتكتب كـ case تاني
                     if (list.SelectedItem is Domain.Entities.Customer chosen)
                     {
                         vm.SelectCustomerSuggestion(chosen);
