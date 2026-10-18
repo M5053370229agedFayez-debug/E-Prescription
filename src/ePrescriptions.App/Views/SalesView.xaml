@@ -558,9 +558,11 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
                                     <TextBlock Text="خصم الفاتورة:" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" />
-                                    <Button Command="{Binding ToggleDiscountTypeCommand}" Background="#E0F2FE" BorderBrush="#0284C7" BorderThickness="1" CornerRadius="3" Padding="4,1" Margin="4,0,0,0" ToolTip="التبديل بين خصم بالمبلغ (ج.م) أو نسبة مئوية (%)">
-                                        <TextBlock Text="{Binding DiscountTypeDisplay}" FontSize="10" FontWeight="Bold" Foreground="#0369A1" />
-                                    </Button>
+                                    <Border CornerRadius="3" BorderBrush="#0284C7" BorderThickness="1" Background="#E0F2FE" Margin="4,0,0,0" VerticalAlignment="Center">
+                                        <Button Command="{Binding ToggleDiscountTypeCommand}" Background="Transparent" BorderThickness="0" Padding="5,1" Cursor="Hand" ToolTip="التبديل بين خصم بالمبلغ (ج.م) أو نسبة مئوية (%)">
+                                            <TextBlock Text="{Binding DiscountTypeDisplay}" FontSize="10" FontWeight="Bold" Foreground="#0369A1" />
+                                        </Button>
+                                    </Border>
                                 </StackPanel>
                                 <TextBox Text="{Binding InvoiceDiscountValue, UpdateSourceTrigger=PropertyChanged}" Width="75" Height="26" FontSize="13" FontWeight="Bold" TextAlignment="Center" Style="{StaticResource AppTextBox}" />
                                 <TextBlock Text="{Binding DiscountRiyals, StringFormat='خصم: {0:N2} ج.م'}" FontSize="9.5" Foreground="#DC2626" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0" />
