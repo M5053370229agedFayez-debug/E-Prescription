@@ -128,9 +128,11 @@ namespace ePrescriptions.App.Services
                     ? BatchLabelCode.Encode(batch!.Id)
                     : (string.IsNullOrWhiteSpace(item.Barcode) ? item.Code : item.Barcode);
 
-                // السطر العلوي: اسم الصيدلية يمين، والتليفون يسار (وعلى ملصق التشغيلة بيتبدل بتاريخ الصلاحية)
-                string headerLeft = isBatchLabel
-                    ? "EXP " + batch!.ExpiryDate.ToString("MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)
+                // السطر العلوي: اسم الصيدلية يمين، وتاريخ الصلاحية يسار عند توفره (أو التليفون لو لم يُحدد تاريخ)
+                bool hasExpiry = batch != null && batch.ExpiryDate != default;
+                string headerLeft = hasExpiry
+                    ? "EXP " + batch!.ExpiryDate.ToString("MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) +
+                      (!string.IsNullOrWhiteSpace(batch.BatchNumber) && !batch.BatchNumber.StartsWith("BN-") ? $" B:{batch.BatchNumber}" : string.Empty)
                     : phone;
 
                 // اسم الصنف تحت الباركود: الاسم الإنجليزي لو موجود (زي الملصق المرجعي) وإلا العربي

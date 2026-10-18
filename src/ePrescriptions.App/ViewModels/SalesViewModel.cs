@@ -700,6 +700,55 @@ namespace ePrescriptions.App.ViewModels
         public decimal TotalNetRiyals => Money.FromPiastres(NetTotalPiastres).ToPounds();
         public decimal RemainingRiyals => Money.FromPiastres(RemainingPiastres).ToPounds();
 
+        // حقل الخصم على الفاتورة (إما بالجنيه أو كنسبة مئوية)
+        private decimal _invoiceDiscountValue;
+        public decimal InvoiceDiscountValue
+        {
+            get => _invoiceDiscountValue;
+            set
+            {
+                if (value < 0) value = 0;
+                if (SetProperty(ref _invoiceDiscountValue, value))
+                {
+                    RecalculateTotals();
+                }
+            }
+        }
+
+        private bool _invoiceDiscountIsPercent;
+        public bool InvoiceDiscountIsPercent
+        {
+            get => _invoiceDiscountIsPercent;
+            set
+            {
+                if (SetProperty(ref _invoiceDiscountIsPercent, value))
+                {
+                    OnPropertyChanged(nameof(DiscountTypeDisplay));
+                    RecalculateTotals();
+                }
+            }
+        }
+
+        public string DiscountTypeDisplay => InvoiceDiscountIsPercent ? "%" : "ج.م";
+
+        // حقل المصروفات الإضافية (زيادة مبلغ على الفاتورة)
+        private decimal _additionalExpensesPounds;
+        public decimal AdditionalExpensesPounds
+        {
+            get => _additionalExpensesPounds;
+            set
+            {
+                if (value < 0) value = 0;
+                if (SetProperty(ref _additionalExpensesPounds, value))
+                {
+                    RecalculateTotals();
+                }
+            }
+        }
+
+        public long AdditionalExpensesPiastres => Money.FromPounds(AdditionalExpensesPounds).Piastres;
+        public decimal AdditionalExpensesRiyals => AdditionalExpensesPounds;
+
         // مرادفات بالجنيه
         public decimal SubtotalPounds => SubtotalRiyals;
         public decimal VatPounds => VatRiyals;
@@ -742,6 +791,7 @@ namespace ePrescriptions.App.ViewModels
         public IRelayCommand OpenInvoiceHistoryCommand { get; }
         public IRelayCommand CloseInvoiceHistoryCommand { get; }
         public IRelayCommand<Invoice> LoadSpecificInvoiceCommand { get; }
+        public IRelayCommand ToggleDiscountTypeCommand { get; }
 
         private SalesItemRow? _selectedCartItem;
         public SalesItemRow? SelectedCartItem
@@ -824,6 +874,7 @@ namespace ePrescriptions.App.ViewModels
             AddAlternativeToCartCommand = new RelayCommand<ItemAlternativeRow>(OnAddAlternativeToCart);
             CloseAlternativesCommand = new RelayCommand(() => IsAlternativesVisible = false);
             UndoLastSavedInvoiceCommand = new RelayCommand(UndoLastSavedInvoice);
+            ToggleDiscountTypeCommand = new RelayCommand(() => InvoiceDiscountIsPercent = !InvoiceDiscountIsPercent);
 
             OpenItemSearchCommand = new RelayCommand(OpenItemSearch);
             CloseSearchPopupCommand = new RelayCommand(() => IsSearchPopupOpen = false);
@@ -883,6 +934,12 @@ namespace ePrescriptions.App.ViewModels
             OutOfStockItemName = string.Empty;
             OutOfStockActiveIngredient = string.Empty;
             PaidRiyals = 0;
+            _invoiceDiscountValue = 0;
+            _invoiceDiscountIsPercent = false;
+            _additionalExpensesPounds = 0;
+            OnPropertyChanged(nameof(InvoiceDiscountValue));
+            OnPropertyChanged(nameof(InvoiceDiscountIsPercent));
+            OnPropertyChanged(nameof(AdditionalExpensesPounds));
             IsViewingHistoricalInvoice = false;
             HistoricalInvoiceStatusText = string.Empty;
             IsSearchPopupOpen = false;
@@ -1362,7 +1419,7 @@ namespace ePrescriptions.App.ViewModels
         public void RecalculateTotals()
         {
             long sub = 0;
-            long disc = 0;
+            long itemsDisc = 0;
             long vat = 0;
             long net = 0;
 
@@ -1370,15 +1427,34 @@ namespace ePrescriptions.App.ViewModels
             {
                 long gross = row.UnitPricePiastres * row.Quantity;
                 sub += gross;
-                disc += row.DiscountPiastres;
+                itemsDisc += row.DiscountPiastres;
                 vat += row.VatPiastres;
                 net += row.TotalPiastres;
             }
 
+            // حساب الخصم العام على الفاتورة (إما بالجنيه أو كنسبة مئوية من الإجمالي)
+            long invDiscPiastres = 0;
+            if (InvoiceDiscountValue > 0 && sub > 0)
+            {
+                if (InvoiceDiscountIsPercent)
+                {
+                    decimal pct = Math.Min(100m, InvoiceDiscountValue);
+                    invDiscPiastres = (long)Math.Round((sub * (double)pct) / 100.0);
+                }
+                else
+                {
+                    invDiscPiastres = Money.FromPounds(InvoiceDiscountValue).Piastres;
+                }
+                invDiscPiastres = Math.Min(Math.Max(0, sub - itemsDisc), invDiscPiastres);
+            }
+
             SubtotalPiastres = sub;
-            DiscountPiastres = disc;
+            DiscountPiastres = itemsDisc + invDiscPiastres;
             VatPiastres = vat;
-            NetTotalPiastres = net;
+
+            // الصافي = المجموع بعد الخصم + الضريبة + المصروفات الإضافية
+            long netAfterDiscount = Math.Max(0, sub - DiscountPiastres);
+            NetTotalPiastres = Math.Max(0, netAfterDiscount + VatPiastres + AdditionalExpensesPiastres);
 
             if (SelectedPaymentMethod == PaymentMethod.Cash || SelectedPaymentMethod == PaymentMethod.Network)
             {
@@ -1503,6 +1579,7 @@ namespace ePrescriptions.App.ViewModels
                     TotalPiastres = NetTotalPiastres,
                     PaidPiastres = Money.FromPounds(PaidRiyals).Piastres,
                     RemainingPiastres = RemainingPiastres,
+                    Notes = AdditionalExpensesPounds > 0 ? $"مصروفات إضافية: {AdditionalExpensesPounds:N2} ج.م" : null,
                     QrCodeText = qrText,
                     OriginalInvoiceId = IsReturnMode ? _returnSource?.Invoice.Id : null
                 };

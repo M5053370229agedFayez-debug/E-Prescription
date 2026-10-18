@@ -535,6 +535,8 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <!-- تفاصيل إحصائية سريعة -->
@@ -544,31 +546,54 @@
                         </StackPanel>
 
                         <!-- المجموع الفرعي -->
-                        <Border Grid.Column="1" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="14,6" Margin="6,0">
+                        <Border Grid.Column="1" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="4,0">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="المجموع قبل الضريبة" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding SubtotalRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="15" FontWeight="Bold" Foreground="#0B2A45" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding SubtotalRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="14" FontWeight="Bold" Foreground="#0B2A45" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- الخصم على الفاتورة -->
+                        <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="8,4" Margin="4,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
+                                    <TextBlock Text="خصم الفاتورة:" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" />
+                                    <Button Command="{Binding ToggleDiscountTypeCommand}" Background="#E0F2FE" BorderBrush="#0284C7" BorderThickness="1" CornerRadius="3" Padding="4,1" Margin="4,0,0,0" ToolTip="التبديل بين خصم بالمبلغ (ج.م) أو نسبة مئوية (%)">
+                                        <TextBlock Text="{Binding DiscountTypeDisplay}" FontSize="10" FontWeight="Bold" Foreground="#0369A1" />
+                                    </Button>
+                                </StackPanel>
+                                <TextBox Text="{Binding InvoiceDiscountValue, UpdateSourceTrigger=PropertyChanged}" Width="75" Height="26" FontSize="13" FontWeight="Bold" TextAlignment="Center" Style="{StaticResource AppTextBox}" />
+                                <TextBlock Text="{Binding DiscountRiyals, StringFormat='خصم: {0:N2} ج.م'}" FontSize="9.5" Foreground="#DC2626" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- مصاريف إضافية (توصيل / خدمة) -->
+                        <Border Grid.Column="3" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="8,4" Margin="4,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="مصاريف إضافية (توصيل/خدمة):" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,0,0,2" />
+                                <TextBox Text="{Binding AdditionalExpensesPounds, UpdateSourceTrigger=PropertyChanged}" Width="75" Height="26" FontSize="13" FontWeight="Bold" TextAlignment="Center" Style="{StaticResource AppTextBox}" />
+                                <TextBlock Text="+ إضافة للصافي" FontSize="9" Foreground="#0284C7" HorizontalAlignment="Center" Margin="0,1,0,0" />
                             </StackPanel>
                         </Border>
 
                         <!-- إجمالي الضريبة -->
-                        <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="14,6" Margin="6,0">
+                        <Border Grid.Column="4" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="4,0">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="ضريبة القيمة المضافة" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding VatRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="15" FontWeight="Bold" Foreground="#0083CB" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding VatRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="14" FontWeight="Bold" Foreground="#0083CB" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
 
                         <!-- تمييز صافي المستحق الإجمالي بشكل بارز -->
-                        <Border Grid.Column="3" Background="#0A4C86" CornerRadius="8" Padding="20,6" Margin="6,0">
+                        <Border Grid.Column="5" Background="#0A4C86" CornerRadius="8" Padding="18,6" Margin="4,0">
                             <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="صافي المستحق (Net)" FontSize="12" Foreground="#38BDF8" FontWeight="Bold" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding TotalNetRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
+                                <TextBlock Text="صافي المستحق (Net)" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding TotalNetRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
 
                         <!-- المبلغ المدفوع -->
-                        <Border Grid.Column="4" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="6,0">
+                        <Border Grid.Column="6" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="4,0">
                             <Grid>
                                 <!-- دفع بطريقة واحدة: خانة المدفوع (تختفي في الدفع المقسّم) -->
                                 <StackPanel HorizontalAlignment="Center">
@@ -613,10 +638,10 @@
                         </Border>
 
                         <!-- المتبقي / مديونية -->
-                        <Border Grid.Column="5" Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="8" Padding="14,6" Margin="6,0">
+                        <Border Grid.Column="7" Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="4,0">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="المتبقي / آجل" FontSize="11" Foreground="#DC2626" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding RemainingRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="16" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding RemainingRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="15" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                     </Grid>

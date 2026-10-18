@@ -285,6 +285,8 @@ namespace ePrescriptions.App.ViewModels
         public IRelayCommand OpenPurchaseHistoryCommand { get; }
         public IRelayCommand ClosePurchaseHistoryCommand { get; }
         public IRelayCommand<PurchaseInvoice> LoadSpecificPurchaseInvoiceCommand { get; }
+        public IRelayCommand PrintCartBarcodeLabelsCommand { get; }
+        public IRelayCommand<PurchaseItemRow> PrintRowBarcodeLabelCommand { get; }
 
         private PurchaseItemRow? _selectedCartItem;
         public PurchaseItemRow? SelectedCartItem
@@ -384,6 +386,9 @@ namespace ePrescriptions.App.ViewModels
                 }
             });
 
+            PrintCartBarcodeLabelsCommand = new RelayCommand(PrintCartBarcodeLabels);
+            PrintRowBarcodeLabelCommand = new RelayCommand<PurchaseItemRow>(PrintRowBarcodeLabel);
+
             LoadData();
             StartNewInvoice();
         }
@@ -433,7 +438,24 @@ namespace ePrescriptions.App.ViewModels
         {
             SuppliersList.Clear();
             var suppliers = _supplierRepository.GetAll();
+            if (suppliers.Count == 0)
+            {
+                var def = new Supplier
+                {
+                    Name = "مورد عام / نقدي",
+                    Phone = "-",
+                    BalancePiastres = 0,
+                    IsActive = true
+                };
+                _supplierRepository.SaveSupplier(def);
+                suppliers = _supplierRepository.GetAll();
+            }
             foreach (var s in suppliers) SuppliersList.Add(s);
+
+            if (SelectedSupplier == null && SuppliersList.Count > 0)
+            {
+                SelectedSupplier = SuppliersList[0];
+            }
 
             InvoicesHistory.Clear();
             var history = _purchaseRepository.GetAllPurchases(50);
@@ -473,6 +495,11 @@ namespace ePrescriptions.App.ViewModels
             IsSearchPopupOpen = false;
             IsPurchaseHistoryOpen = false;
             SelectedCartItem = null;
+
+            if (SelectedSupplier == null && SuppliersList.Count > 0)
+            {
+                SelectedSupplier = SuppliersList[0];
+            }
 
             RecalculateTotals();
         }
@@ -772,82 +799,219 @@ namespace ePrescriptions.App.ViewModels
 
         public void SaveInvoice()
         {
-            if (SelectedSupplier == null)
+            try
             {
-                StatusMessage = "يرجى تحديد المورد أولاً قبل حفظ الفاتورة!";
-                return;
-            }
+                if (IsViewingHistoricalInvoice)
+                {
+                    StatusMessage = "أنت تستعرض فاتورة سابقة حالياً، اضغط 'فاتورة جديدة' (F1) لإنشاء فاتورة مشتريات جديدة.";
+                    System.Windows.MessageBox.Show(
+                        "أنت تستعرض فاتورة مشتريات سابقة حالياً.\nلإدخال فاتورة جديدة، اضغط على زر 'فاتورة جديدة' (F1) أولاً.",
+                        "تنبيه",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                    return;
+                }
 
+                if (CartItems.Count == 0)
+                {
+                    StatusMessage = "لا يمكن حفظ فاتورة مشتريات خالية من الأصناف!";
+                    System.Windows.MessageBox.Show(
+                        "لا يمكن حفظ فاتورة مشتريات فارغة! يرجى إضافة صنف واحد على الأقل للفاتورة أولاً.",
+                        "تنبيه",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (SelectedSupplier == null || SelectedSupplier.Id <= 0)
+                {
+                    if (SuppliersList.Count > 0 && SuppliersList[0].Id > 0)
+                    {
+                        SelectedSupplier = SuppliersList[0];
+                    }
+                    else
+                    {
+                        var def = new Supplier
+                        {
+                            Name = "مورد عام / نقدي",
+                            Phone = "-",
+                            BalancePiastres = 0,
+                            IsActive = true
+                        };
+                        int newId = _supplierRepository.SaveSupplier(def);
+                        if (newId > 0) def.Id = newId;
+                        SuppliersList.Add(def);
+                        SelectedSupplier = def;
+                    }
+                }
+
+                var inv = new PurchaseInvoice
+                {
+                    InvoiceNumber = InvoiceNumber,
+                    SupplierId = SelectedSupplier.Id,
+                    SupplierName = SelectedSupplier.Name,
+                    InvoiceDate = InvoiceDate,
+                    SubtotalPiastres = SubtotalPiastres,
+                    VatPiastres = VatPiastres,
+                    TotalPiastres = TotalPiastres,
+                    PaidPiastres = Money.FromPounds(PaidRiyals).Piastres,
+                    RemainingPiastres = RemainingPiastres,
+                    Notes = InvoiceNotes
+                };
+
+                foreach (var row in CartItems)
+                {
+                    inv.Items.Add(new PurchaseInvoiceItem
+                    {
+                        ItemId = row.ItemId,
+                        ItemCode = row.ItemCode,
+                        ItemNameAr = row.ItemNameAr,
+                        BatchNumber = string.IsNullOrWhiteSpace(row.BatchNumber) ? $"BN-{DbDate.Compact(DateTime.Now)}" : row.BatchNumber.Trim(),
+                        ExpiryDate = row.ExpiryDate,
+                        UnitLevel = row.UnitLevel,
+                        QuantityPurchased = Math.Max(1, row.QuantityPurchased),
+                        SmallestUnitsCount = Math.Max(1, row.SmallestUnitsCount),
+                        UnitCostPiastres = row.UnitCostPiastres,
+                        VatPiastres = row.VatPiastres,
+                        VatPercent = row.VatPercent,
+                        TotalPiastres = row.TotalPiastres
+                    });
+                }
+
+                if (_purchaseRepository.SavePurchaseInvoice(inv, out string err))
+                {
+                    LastSavedInvoiceId = inv.Id;
+                    LastSavedInvoiceNumber = inv.InvoiceNumber;
+                    string saved = $"تم حفظ فاتورة الشراء '{inv.InvoiceNumber}' بنجاح وزيادة أرصدة المخزون.";
+                    LoadData();
+                    StartNewInvoice();
+                    StatusMessage = saved;
+
+                    System.Windows.MessageBox.Show(
+                        $"تم حفظ واعتماد فاتورة المشتريات رقم '{inv.InvoiceNumber}' بنجاح!\nالمورد: {inv.SupplierName}\nالإجمالي: {Money.FromPiastres(inv.TotalPiastres).ToPounds():N2} ج.م\nتم تحديث أرصدة المخزون وحساب المورد والقيود اليومية.",
+                        "تم الحفظ بنجاح",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+
+                    // ملصقات الصلاحية: ملصق لكل علبة بباركود يعرّف التشغيلة
+                    try
+                    {
+                        var labelLines = new System.Collections.Generic.List<(Item Item, ItemBatch Batch, int Units)>();
+                        foreach (var line in inv.Items)
+                        {
+                            var itm = _itemRepository.GetById(line.ItemId);
+                            var batch = line.BatchId > 0 ? _itemRepository.GetBatchById(line.BatchId) : null;
+                            if (itm != null && batch != null)
+                                labelLines.Add((itm, batch, line.SmallestUnitsCount));
+                        }
+                        string? printMsg = Services.BatchLabelPrintHelper.OfferAndPrint(_barcodeLabelService, labelLines);
+                        if (printMsg != null) StatusMessage = $"{saved} {printMsg}";
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex, "PurchasesViewModel.PrintBatchLabels");
+                    }
+                }
+                else
+                {
+                    StatusMessage = $"فشل حفظ فاتورة المشتريات: {err}";
+                    System.Windows.MessageBox.Show(
+                        $"تعذر حفظ فاتورة المشتريات:\n{err}",
+                        "خطأ في الحفظ",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex, "PurchasesViewModel.SaveInvoice");
+                StatusMessage = $"حدث خطأ أثناء حفظ الفاتورة: {ex.Message}";
+                System.Windows.MessageBox.Show(
+                    $"حدث خطأ غير متوقع أثناء حفظ فاتورة المشتريات:\n{ex.Message}",
+                    "خطأ",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        public void PrintCartBarcodeLabels()
+        {
             if (CartItems.Count == 0)
             {
-                StatusMessage = "لا يمكن حفظ فاتورة مشتريات خالية من الأصناف!";
+                StatusMessage = "لا توجد أصناف في فاتورة المشتريات لطباعة الباركود لها.";
+                System.Windows.MessageBox.Show(
+                    "لا توجد أصناف في فاتورة المشتريات لطباعة الباركود لها! يرجى إضافة أصناف أولاً.",
+                    "تنبيه",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
                 return;
             }
 
-            var inv = new PurchaseInvoice
-            {
-                InvoiceNumber = InvoiceNumber,
-                SupplierId = SelectedSupplier.Id,
-                SupplierName = SelectedSupplier.Name,
-                InvoiceDate = InvoiceDate,
-                SubtotalPiastres = SubtotalPiastres,
-                VatPiastres = VatPiastres,
-                TotalPiastres = TotalPiastres,
-                PaidPiastres = Money.FromPounds(PaidRiyals).Piastres,
-                RemainingPiastres = RemainingPiastres,
-                Notes = InvoiceNotes
-            };
-
+            var labelLines = new System.Collections.Generic.List<(Item Item, ItemBatch Batch, int Units)>();
             foreach (var row in CartItems)
             {
-                inv.Items.Add(new PurchaseInvoiceItem
+                var itm = _itemRepository.GetById(row.ItemId) ?? new Item
+                {
+                    Id = row.ItemId,
+                    Code = row.ItemCode,
+                    Barcode = row.ItemCode,
+                    NameAr = row.ItemNameAr,
+                    StripsPerBox = row.StripsPerBox,
+                    PiecesPerStrip = row.PiecesPerStrip
+                };
+
+                var batch = new ItemBatch
                 {
                     ItemId = row.ItemId,
-                    ItemCode = row.ItemCode,
-                    ItemNameAr = row.ItemNameAr,
-                    BatchNumber = string.IsNullOrWhiteSpace(row.BatchNumber) ? $"BN-{DbDate.Compact(DateTime.Now)}" : row.BatchNumber,
+                    BatchNumber = string.IsNullOrWhiteSpace(row.BatchNumber) ? $"BN-{DbDate.Compact(DateTime.Now)}" : row.BatchNumber.Trim(),
                     ExpiryDate = row.ExpiryDate,
-                    UnitLevel = row.UnitLevel,
-                    QuantityPurchased = row.QuantityPurchased,
-                    SmallestUnitsCount = row.SmallestUnitsCount,
-                    UnitCostPiastres = row.UnitCostPiastres,
-                    VatPiastres = row.VatPiastres,
-                    VatPercent = row.VatPercent,
-                    TotalPiastres = row.TotalPiastres
-                });
+                    RemainingSmallestUnits = row.SmallestUnitsCount
+                };
+
+                labelLines.Add((itm, batch, row.SmallestUnitsCount));
             }
 
-            if (_purchaseRepository.SavePurchaseInvoice(inv, out string err))
+            string? msg = Services.BatchLabelPrintHelper.OfferAndPrint(_barcodeLabelService, labelLines);
+            if (!string.IsNullOrEmpty(msg))
             {
-                LastSavedInvoiceId = inv.Id;
-                LastSavedInvoiceNumber = inv.InvoiceNumber;
-                string saved = $"تم حفظ فاتورة الشراء '{inv.InvoiceNumber}' بنجاح وزيادة أرصدة المخزون (يمكنك التراجع عنها بالضغط على زر التراجع).";
-                LoadData();
-                StartNewInvoice();
-                StatusMessage = saved;
-
-                // ملصقات الصلاحية: ملصق لكل علبة بباركود يعرّف التشغيلة
-                try
-                {
-                    var labelLines = new System.Collections.Generic.List<(Item Item, ItemBatch Batch, int Units)>();
-                    foreach (var line in inv.Items)
-                    {
-                        var itm = _itemRepository.GetById(line.ItemId);
-                        var batch = line.BatchId > 0 ? _itemRepository.GetBatchById(line.BatchId) : null;
-                        if (itm != null && batch != null)
-                            labelLines.Add((itm, batch, line.SmallestUnitsCount));
-                    }
-                    string? printMsg = Services.BatchLabelPrintHelper.OfferAndPrint(_barcodeLabelService, labelLines);
-                    if (printMsg != null) StatusMessage = $"{saved} {printMsg}";
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogException(ex, "PurchasesViewModel.PrintBatchLabels");
-                }
+                StatusMessage = msg;
+                System.Windows.MessageBox.Show(msg, "طباعة الباركود", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
-            else
+        }
+
+        public void PrintRowBarcodeLabel(PurchaseItemRow? row)
+        {
+            if (row == null) return;
+            var itm = _itemRepository.GetById(row.ItemId) ?? new Item
             {
-                StatusMessage = $"فشل حفظ فاتورة المشتريات: {err}";
+                Id = row.ItemId,
+                Code = row.ItemCode,
+                Barcode = row.ItemCode,
+                NameAr = row.ItemNameAr,
+                StripsPerBox = row.StripsPerBox,
+                PiecesPerStrip = row.PiecesPerStrip
+            };
+
+            var batch = new ItemBatch
+            {
+                ItemId = row.ItemId,
+                BatchNumber = string.IsNullOrWhiteSpace(row.BatchNumber) ? $"BN-{DbDate.Compact(DateTime.Now)}" : row.BatchNumber.Trim(),
+                ExpiryDate = row.ExpiryDate,
+                RemainingSmallestUnits = row.SmallestUnitsCount
+            };
+
+            int labels = Services.BatchLabelPrintHelper.LabelsFor(itm, row.SmallestUnitsCount);
+            if (_barcodeLabelService != null)
+            {
+                if (_barcodeLabelService.PrintBarcodeLabel(itm, batch, labels, out string err))
+                {
+                    StatusMessage = $"تمت طباعة {labels} ملصق باركود للصنف {itm.NameAr}";
+                }
+                else
+                {
+                    StatusMessage = $"تعذرت طباعة الباركود: {err}";
+                    System.Windows.MessageBox.Show($"تعذرت طباعة الباركود: {err}", "خطأ في الطباعة", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                }
             }
         }
 

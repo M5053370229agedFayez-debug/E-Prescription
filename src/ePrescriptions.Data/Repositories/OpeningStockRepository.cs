@@ -110,9 +110,11 @@ namespace ePrescriptions.Data.Repositories
                 int lineIndex = 0;
                 foreach (var line in voucher.Lines)
                 {
+                    line.RecalculateLine();
+                    if (line.TotalSmallestUnits <= 0) continue;
+
                     lineIndex++;
                     line.VoucherId = voucher.Id;
-                    line.RecalculateLine();
 
                     int perBox = line.SmallestUnitsPerBox;
 
@@ -151,6 +153,7 @@ namespace ePrescriptions.Data.Repositories
 
                             // Items.Barcode فريد وNOT NULL: الأصناف من غير باركود بتاخد الكود بدل نص فاضي (وإلا تاني صنف فاضي هيفشل)
                             string itemBarcode = string.IsNullOrWhiteSpace(line.ItemBarcode) ? itemCode : line.ItemBarcode!.Trim();
+                            string searchText = ItemRepository.BuildSearchText(line.ItemNameAr, line.ItemNameEn, line.ActiveIngredient);
 
                             using var insertItemCmd = conn.CreateCommand();
                             insertItemCmd.Transaction = trans;
@@ -161,14 +164,14 @@ namespace ePrescriptions.Data.Repositories
                                     WholesalePriceBoxPiastres, CostPriceBoxPiastres,
                                     MinStockAlertSmallestUnits, IsPrescriptionRequired,
                                     IsVatExempt, CustomVatPercent, TotalStockSmallestUnits,
-                                    OversoldSmallestUnits, IsActive
+                                    OversoldSmallestUnits, IsActive, SearchText
                                 ) VALUES (
                                     @code, @barcode, @nameAr, @nameEn, @active,
                                     @strips, @pieces, @retail,
                                     @wholesale, @cost,
                                     30, 0,
                                     0, -1, 0,
-                                    0, 1
+                                    0, 1, @search
                                 );
                                 SELECT last_insert_rowid();";
 
@@ -182,9 +185,28 @@ namespace ePrescriptions.Data.Repositories
                             insertItemCmd.Parameters.AddWithValue("@retail", line.RetailPriceBoxPiastres);
                             insertItemCmd.Parameters.AddWithValue("@wholesale", line.RetailPriceBoxPiastres);
                             insertItemCmd.Parameters.AddWithValue("@cost", line.CostPriceBoxPiastres);
+                            insertItemCmd.Parameters.AddWithValue("@search", searchText);
 
-                            line.ItemId = Convert.ToInt32(insertItemCmd.ExecuteScalar());
-                            line.ItemCode = itemCode;
+                            try
+                            {
+                                line.ItemId = Convert.ToInt32(insertItemCmd.ExecuteScalar());
+                                line.ItemCode = itemCode;
+                            }
+                            catch (SQLiteException ex) when (ex.Message.IndexOf("UNIQUE", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                var existingItem = FindItem(conn, trans, itemBarcode, itemCode);
+                                if (existingItem != null)
+                                {
+                                    line.ItemId = existingItem.Value.Id;
+                                    line.ItemCode = existingItem.Value.Code;
+                                    line.StripsPerBox = existingItem.Value.Strips;
+                                    line.PiecesPerStrip = existingItem.Value.Pieces;
+                                }
+                                else
+                                {
+                                    throw;
+                                }
+                            }
                         }
                     }
 
@@ -315,9 +337,6 @@ namespace ePrescriptions.Data.Repositories
                     );
                 }
 
-                // 5) تسجيل في سجل التدقيق
-                LogAudit(currentUser, voucher);
-
                 trans.Commit();
             }
             catch (Exception ex)
@@ -338,6 +357,16 @@ namespace ePrescriptions.Data.Repositories
                 voucher.VoucherNumber = originalVoucherNumber;
                 Logger.LogException(ex, "OpeningStockRepository.SaveVoucher");
                 throw;
+            }
+
+            // 5) تسجيل في سجل التدقيق بعد نجاح واكتمال المعاملة لتجنب قفل قاعدة البيانات (database locked)
+            try
+            {
+                LogAudit(currentUser, voucher);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex, "OpeningStockRepository.LogAudit");
             }
 
             // تحديث فهرس البحث السريع للأصناف الجديدة
@@ -375,7 +404,7 @@ namespace ePrescriptions.Data.Repositories
                 cmd.CommandText = @"
                     SELECT Id, Code, StripsPerBox, PiecesPerStrip, IsActive
                     FROM Items
-                    WHERE Barcode = @k OR Code = @k
+                    WHERE TRIM(Barcode) = @k COLLATE NOCASE OR TRIM(Code) = @k COLLATE NOCASE
                     ORDER BY IsActive DESC, Id ASC
                     LIMIT 1;";
                 cmd.Parameters.AddWithValue("@k", key);

@@ -1,0 +1,82 @@
+## =========================================================================
+## .gitignore القياسي لمشاريع Visual Studio و .NET (WPF / C# / Inno Setup)
+## =========================================================================
+
+# Build and Output Directories
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Tt]mp/
+[Tt]emp/
+dist/
+build/
+
+# Architecture-specific output folders
+x86/
+x64/
+arm/
+arm64/
+
+# Visual Studio temporary files, caches, and user settings
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.dbmdl
+*.jsproj.user
+*.pidb
+*.booproj.user
+
+# Visual Studio Code & Rider
+.idea/
+*.DotSettings.user
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# NuGet Packages
+*.nupkg
+packages/
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+
+# Test Results and Coverage
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+*.mprof
+
+# Inno Setup output files
+Output/
+_Output/
+
+# Windows OS Generated Files
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+# SQLite Local Database Files & Journal/WAL
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Crash Dumps & Memory Logs
+*.dmp
+*.crash
+*.mdmp

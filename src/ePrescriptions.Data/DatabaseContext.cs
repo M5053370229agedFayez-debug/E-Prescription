@@ -18,7 +18,7 @@ namespace ePrescriptions.Data
         /// <summary>
         /// آخر إصدار للمخطط (عدد ملفات الـ Migrations المطبقة)
         /// </summary>
-        public const int LatestSchemaVersion = 24;
+        public const int LatestSchemaVersion = 25;
 
         private readonly string _connectionString;
         private readonly bool _isInMemory;
@@ -42,7 +42,7 @@ namespace ePrescriptions.Data
                 _isInMemory = true;
                 string tempPath = Path.Combine(Path.GetTempPath(), "e_prescriptions_tmp_" + Guid.NewGuid().ToString("N") + ".db");
                 DatabasePath = tempPath;
-                _connectionString = $"Data Source={tempPath};Version=3;Pooling=False;BusyTimeout=5000;";
+                _connectionString = $"Data Source={tempPath};Version=3;Pooling=False;BusyTimeout=30000;";
                 AppDomain.CurrentDomain.ProcessExit += (_, __) =>
                 {
                     try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch (Exception ex) { Logger.LogException(ex, "DatabaseContext (حذف ملف القاعدة المؤقتة)"); }
@@ -56,12 +56,12 @@ namespace ePrescriptions.Data
                 string directory = Path.GetDirectoryName(dbPath)!;
                 AppPaths.EnsureDirectory(directory);
 
-                _connectionString = $"Data Source={dbPath};Version=3;Pooling=True;Max Pool Size=10;BusyTimeout=5000;";
+                _connectionString = $"Data Source={dbPath};Version=3;Pooling=True;Max Pool Size=10;BusyTimeout=30000;";
             }
         }
 
         /// <summary>
-        /// فتح اتصال SQLite مع تفعيل WAL والمفاتيح الأجنبية
+        /// فتح اتصال SQLite مع تفعيل المفاتيح الأجنبية وضبط مهلة الانتظار 30 ثانية لتجنب أخطاء database locked
         /// </summary>
         public SQLiteConnection CreateConnection()
         {
@@ -69,11 +69,7 @@ namespace ePrescriptions.Data
             conn.Open();
 
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;";
-            if (!_isInMemory)
-            {
-                cmd.CommandText += " PRAGMA journal_mode = WAL;";
-            }
+            cmd.CommandText = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 30000; PRAGMA synchronous = NORMAL;";
             cmd.ExecuteNonQuery();
 
             return conn;
@@ -85,6 +81,20 @@ namespace ePrescriptions.Data
         public void InitializeAndMigrate(bool seedData = true)
         {
             using var conn = CreateConnection();
+            if (!_isInMemory)
+            {
+                try
+                {
+                    using var walCmd = conn.CreateCommand();
+                    walCmd.CommandText = "PRAGMA journal_mode = WAL;";
+                    walCmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException(ex, "DatabaseContext.SetWalMode");
+                }
+            }
+
             using var trans = conn.BeginTransaction();
             try
             {
@@ -314,6 +324,24 @@ namespace ePrescriptions.Data
                     ExecuteSqlScript(conn, script024);
                     SetUserVersion(conn, 24);
                     Logger.LogInfo("تم تطبيق Migration 024 بنجاح.", "DatabaseContext");
+                }
+
+                if (currentVersion < 25)
+                {
+                    // تطبيق Migration 025: إضافة عمود Status وبيانات الإلغاء لجدول PurchaseInvoices
+                    bool hasStatusCol = false;
+                    using (var checkCmd = conn.CreateCommand())
+                    {
+                        checkCmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('PurchaseInvoices') WHERE name = 'Status';";
+                        hasStatusCol = Convert.ToInt64(checkCmd.ExecuteScalar() ?? 0) > 0;
+                    }
+                    if (!hasStatusCol)
+                    {
+                        string script025 = ReadEmbeddedSql("025_PurchaseInvoiceStatus.sql");
+                        ExecuteSqlScript(conn, script025);
+                    }
+                    SetUserVersion(conn, 25);
+                    Logger.LogInfo("تم تطبيق Migration 025 بنجاح.", "DatabaseContext");
                 }
 
                 trans.Commit();

@@ -731,6 +731,18 @@ namespace ePrescriptions.App.ViewModels
                 int lastRow = used.LastRow().RowNumber();
                 int importedCount = 0;
 
+                // تحميل الأصناف الحالية في الذاكرة مرة واحدة بدلاً من فتح اتصال قاعدة بيانات لكل صف في الإكسيل
+                var allDbItems = _itemRepository.GetAll();
+                var itemsByBarcode = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
+                var itemsByCode = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
+                foreach (var itm in allDbItems)
+                {
+                    if (!string.IsNullOrWhiteSpace(itm.Barcode))
+                        itemsByBarcode[itm.Barcode.Trim()] = itm;
+                    if (!string.IsNullOrWhiteSpace(itm.Code))
+                        itemsByCode[itm.Code.Trim()] = itm;
+                }
+
                 // تخطي صف العناوين (الصف الأول)
                 for (int r = firstRow + 1; r <= lastRow; r++)
                 {
@@ -769,10 +781,13 @@ namespace ePrescriptions.App.ViewModels
                     decimal retail = 0m;
                     if (decimal.TryParse(sheet.Cell(r, 13).GetString(), out decimal retVal)) retail = retVal;
 
-                    // فحص قاعدة البيانات لمعرفة ما إذا كان الصنف موجوداً بالفعل
+                    // فحص الذاكرة لمعرفة ما إذا كان الصنف موجوداً بالفعل دون فتح اتصالات متكررة بالقاعدة
                     Item? dbItem = null;
                     if (!string.IsNullOrWhiteSpace(barcode))
-                        dbItem = _itemRepository.GetByBarcodeOrCode(barcode);
+                    {
+                        itemsByBarcode.TryGetValue(barcode, out dbItem);
+                        if (dbItem == null) itemsByCode.TryGetValue(barcode, out dbItem);
+                    }
 
                     var line = new OpeningStockVoucherLine
                     {

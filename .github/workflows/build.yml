@@ -105,3 +105,10 @@ jobs:
         with:
           name: e_prescriptions_Setup_v1.0.0
           path: dist/installer
+
+      - name: Upload application build output artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: e_prescriptions_Binaries_Release
+          path: src/ePrescriptions.App/bin/Release/net48
+
