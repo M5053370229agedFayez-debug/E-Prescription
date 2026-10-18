@@ -51,13 +51,16 @@ namespace ePrescriptions.Tests
             string main = File.ReadAllText(Path.Combine(Root(), "src", "ePrescriptions.App", "MainWindow.xaml"));
             string login = File.ReadAllText(Path.Combine(Root(), "src", "ePrescriptions.App", "Views", "LoginWindow.xaml"));
 
-            main.Should().Contain("Text=\"" + FooterText + "\"");
+            // الفوتر بقى جوه شريط الاختصارات السفلي (ShortcutsBar): Overlay ملتصق بأسفل النافذة الرئيسية والنوافذ المستقلة
+            string bar = File.ReadAllText(Path.Combine(Root(), "src", "ePrescriptions.App", "Views", "ShortcutsBar.xaml"));
+            string standalone = File.ReadAllText(Path.Combine(Root(), "src", "ePrescriptions.App", "Views", "StandaloneWindow.xaml"));
+
+            bar.Should().Contain("Text=\"" + FooterText + "\"");
             login.Should().Contain("Text=\"" + FooterText + "\"");
 
-            // الفوتر في آخر صف من الشبكة الرئيسية (صف 3 بعد الصفوف 0-2)
-            main.Should().Contain("<Border Grid.Row=\"3\"");
-            int rows = System.Text.RegularExpressions.Regex.Matches(main.Substring(0, main.IndexOf("</Grid.RowDefinitions>", StringComparison.Ordinal)), "<RowDefinition").Count;
-            rows.Should().BeGreaterThanOrEqualTo(4);
+            main.Should().Contain("<views:ShortcutsBar");
+            main.Should().Contain("VerticalAlignment=\"Bottom\"");
+            standalone.Should().Contain("<views:ShortcutsBar");
         }
 
         [Fact]

@@ -89,13 +89,16 @@ namespace ePrescriptions.Tests
         public void ScreensFooter_ShouldShowBylineAndCopyrightOnLoginAndMain()
         {
             string login = Read("src", "ePrescriptions.App", "Views", "LoginWindow.xaml");
+            // الفوتر في الشاشة الرئيسية بقى جوه شريط الاختصارات السفلي (ShortcutsBar) اللي بتعرضه MainWindow
             string main = Read("src", "ePrescriptions.App", "MainWindow.xaml");
+            string bar = Read("src", "ePrescriptions.App", "Views", "ShortcutsBar.xaml");
+            main.Should().Contain("<views:ShortcutsBar");
             login.Should().Contain(AppBranding.ProductByline);
             login.Should().Contain(AppBranding.Copyright);
-            main.Should().Contain(AppBranding.ProductByline);
-            main.Should().Contain(AppBranding.Copyright);
+            bar.Should().Contain(AppBranding.ProductByline);
+            bar.Should().Contain(AppBranding.Copyright);
             login.Should().Contain("Text=\"" + AppBranding.ScreenFooter + "\"");
-            main.Should().Contain("Text=\"" + AppBranding.ScreenFooter + "\"");
+            bar.Should().Contain("Text=\"" + AppBranding.ScreenFooter + "\"");
         }
     }
 }
