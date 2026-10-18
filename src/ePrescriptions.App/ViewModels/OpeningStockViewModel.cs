@@ -732,7 +732,7 @@ namespace ePrescriptions.App.ViewModels
                 int importedCount = 0;
 
                 // تحميل الأصناف الحالية في الذاكرة مرة واحدة بدلاً من فتح اتصال قاعدة بيانات لكل صف في الإكسيل
-                var allDbItems = _itemRepository.GetAll();
+                var allDbItems = _itemRepository.GetAllItems();
                 var itemsByBarcode = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
                 var itemsByCode = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
                 foreach (var itm in allDbItems)
