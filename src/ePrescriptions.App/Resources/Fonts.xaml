@@ -5,11 +5,11 @@
     <FontFamily x:Key="AppFontFamily">Segoe UI, Tahoma, Arial</FontFamily>
 
     <!-- أحجام الخطوط القياسية المدمجة والواضحة لتوفير مساحة مريحة وغير مزدحمة -->
-    <sys:Double x:Key="FontSizeSmall" xmlns:sys="clr-namespace:System;assembly=mscorlib">10</sys:Double>
-    <sys:Double x:Key="FontSizeRegular" xmlns:sys="clr-namespace:System;assembly=mscorlib">11.5</sys:Double>
-    <sys:Double x:Key="FontSizeMedium" xmlns:sys="clr-namespace:System;assembly=mscorlib">13</sys:Double>
-    <sys:Double x:Key="FontSizeLarge" xmlns:sys="clr-namespace:System;assembly=mscorlib">15</sys:Double>
-    <sys:Double x:Key="FontSizeTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">17</sys:Double>
-    <sys:Double x:Key="FontSizeBanner" xmlns:sys="clr-namespace:System;assembly=mscorlib">20</sys:Double>
+    <sys:Double x:Key="FontSizeSmall" xmlns:sys="clr-namespace:System;assembly=mscorlib">11</sys:Double>
+    <sys:Double x:Key="FontSizeRegular" xmlns:sys="clr-namespace:System;assembly=mscorlib">13</sys:Double>
+    <sys:Double x:Key="FontSizeMedium" xmlns:sys="clr-namespace:System;assembly=mscorlib">14</sys:Double>
+    <sys:Double x:Key="FontSizeLarge" xmlns:sys="clr-namespace:System;assembly=mscorlib">16</sys:Double>
+    <sys:Double x:Key="FontSizeTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">18</sys:Double>
+    <sys:Double x:Key="FontSizeBanner" xmlns:sys="clr-namespace:System;assembly=mscorlib">21</sys:Double>
 
 </ResourceDictionary>

@@ -448,6 +448,102 @@ namespace ePrescriptions.App.ViewModels
             set => SetProperty(ref _customerName, value);
         }
 
+        // ===== اقتراحات أسماء العملاء المسجلين أثناء الكتابة في خانة "اسم العميل" =====
+        public ObservableCollection<Customer> CustomerSuggestions { get; } = new();
+
+        private bool _isCustomerSuggestionsOpen;
+        public bool IsCustomerSuggestionsOpen
+        {
+            get => _isCustomerSuggestionsOpen;
+            set => SetProperty(ref _isCustomerSuggestionsOpen, value);
+        }
+
+        private bool _suppressCustomerSuggestions;
+
+        /// <summary>توحيد الحروف العربية للمقارنة: الهمزات، ة/ه، ى/ي، التشكيل، وحالة الأحرف.</summary>
+        private static string NormalizeArabic(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+            var sb = new System.Text.StringBuilder(text.Length);
+            foreach (char ch in text.Trim())
+            {
+                if (ch >= '\u064B' && ch <= '\u0652') continue; // التشكيل
+                if (ch == '\u0640') continue;                    // التطويل
+                switch (ch)
+                {
+                    case 'أ': case 'إ': case 'آ': sb.Append('ا'); break;
+                    case 'ة': sb.Append('ه'); break;
+                    case 'ى': sb.Append('ي'); break;
+                    default: sb.Append(char.ToLowerInvariant(ch)); break;
+                }
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>تحديث قائمة العملاء من قاعدة البيانات (عشان العملاء الجدد اللي اتضافوا من شاشة العملاء يظهروا).</summary>
+        public void RefreshCustomersList()
+        {
+            try
+            {
+                var customers = _customerRepository.GetAll();
+                CustomersList.Clear();
+                foreach (var c in customers) CustomersList.Add(c);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex, "SalesViewModel.RefreshCustomersList");
+            }
+        }
+
+        /// <summary>بتتنادى من الواجهة لما المستخدم يكتب في خانة اسم العميل: بترجّع العملاء المسجلين المطابقين للحروف المكتوبة (الاسم أو الموبايل).</summary>
+        public void UpdateCustomerSuggestions(string? typed)
+        {
+            if (_suppressCustomerSuggestions) return;
+
+            string q = NormalizeArabic(typed);
+            CustomerSuggestions.Clear();
+            if (q.Length == 0)
+            {
+                IsCustomerSuggestionsOpen = false;
+                return;
+            }
+
+            var matches = CustomersList
+                .Where(c => !c.IsDefaultCash)
+                .Select(c => new { Customer = c, Name = NormalizeArabic(c.Name), Phone = c.Phone ?? string.Empty })
+                .Where(x => x.Name.Contains(q) || (x.Phone.Length > 0 && x.Phone.Contains(q)))
+                .OrderBy(x => x.Name.StartsWith(q) ? 0 : 1)   // اللي بيبدأ بالحروف المكتوبة الأول
+                .ThenBy(x => x.Name, StringComparer.Ordinal)
+                .Select(x => x.Customer)
+                .Take(8)
+                .ToList();
+
+            // لو الاسم المكتوب مطابق تماماً لعميل واحد (يعني اتختار بالفعل) مفيش داعي نعرض القائمة
+            if (matches.Count == 1 && NormalizeArabic(matches[0].Name) == q)
+                matches.Clear();
+
+            foreach (var m in matches) CustomerSuggestions.Add(m);
+            IsCustomerSuggestionsOpen = CustomerSuggestions.Count > 0;
+        }
+
+        /// <summary>اختيار عميل من الاقتراحات: بيملأ الاسم والموبايل.</summary>
+        public void SelectCustomerSuggestion(Customer? customer)
+        {
+            if (customer == null) return;
+            _suppressCustomerSuggestions = true;
+            try
+            {
+                CustomerName = customer.Name;
+                CustomerPhone = customer.Phone ?? string.Empty;
+            }
+            finally
+            {
+                _suppressCustomerSuggestions = false;
+            }
+            CustomerSuggestions.Clear();
+            IsCustomerSuggestionsOpen = false;
+        }
+
         private string _customerPhone = string.Empty;
         public string CustomerPhone
         {

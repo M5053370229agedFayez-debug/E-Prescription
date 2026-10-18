@@ -128,7 +128,43 @@
                         <!-- اسم العميل -->
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="4,2">
                             <TextBlock Text="اسم العميل:" FontWeight="SemiBold" Foreground="#3F5A73" Margin="0,0,0,2" FontSize="11.5" />
-                            <TextBox Text="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppTextBox}" Height="30" />
+                            <TextBox x:Name="CustomerNameBox" Text="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppTextBox}" Height="30"
+                                     GotKeyboardFocus="CustomerNameBox_GotKeyboardFocus"
+                                     TextChanged="CustomerNameBox_TextChanged"
+                                     PreviewKeyDown="CustomerNameBox_PreviewKeyDown" />
+
+                            <!-- اقتراحات العملاء المسجلين المطابقين للحروف المكتوبة -->
+                            <Popup IsOpen="{Binding IsCustomerSuggestionsOpen, Mode=TwoWay}"
+                                   PlacementTarget="{Binding ElementName=CustomerNameBox}"
+                                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+                                   Width="{Binding ActualWidth, ElementName=CustomerNameBox}" FlowDirection="RightToLeft">
+                                <Border Background="White" BorderBrush="#0083CB" BorderThickness="1.5" CornerRadius="6" Padding="2" Effect="{StaticResource CardShadow}">
+                                    <ListBox x:Name="CustomerSuggestionsList" ItemsSource="{Binding CustomerSuggestions}" BorderThickness="0" MaxHeight="260"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             PreviewMouseLeftButtonUp="CustomerSuggestionsList_MouseUp">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <!-- Focusable=False عشان الضغط على اقتراح ما يسحبش الفوكس من خانة الاسم -->
+                                                <Setter Property="Focusable" Value="False" />
+                                                <Setter Property="Cursor" Value="Hand" />
+                                                <Setter Property="Padding" Value="8,6" />
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" Foreground="#0B2A45" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Phone}" Foreground="#64748B" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" FlowDirection="LeftToRight" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Popup>
                         </StackPanel>
 
                         <!-- موبايل العميل -->

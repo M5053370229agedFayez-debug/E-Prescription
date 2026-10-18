@@ -21,7 +21,7 @@
             <Button Command="{Binding NewInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0083CB" Margin="4,3">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#0155A5" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F1" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F1" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="فاتورة جديدة" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -29,7 +29,7 @@
             <Button Command="{Binding SaveInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#10B981" Margin="4,3">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#047857" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F2" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F2" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="حفظ الفاتورة" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -37,7 +37,7 @@
             <Button Command="{Binding PrintInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#02ABE1" Margin="4,3">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#4338CA" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F3" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F3" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="طباعة إيصال" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -45,7 +45,7 @@
             <Button Command="{Binding OpenItemSearchCommand}" Style="{StaticResource PosActionButton}" Background="#059669" Margin="4,3" ToolTip="البحث اليدوي عن صنف وإضافته للفاتورة (F4)">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#065F46" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F4" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F4" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="بحث عن صنف" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -53,7 +53,7 @@
             <Button Command="{Binding RemoveSelectedItemCommand}" Style="{StaticResource PosActionButton}" Background="#EF4444" Margin="4,3" ToolTip="حذف الصنف المحدد حالياً من الفاتورة (زر Delete)">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#B91C1C" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="Del" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="Del" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="حذف الصنف" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -61,7 +61,7 @@
             <Button Command="{Binding SuspendInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#F59E0B" Margin="4,3">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#B45309" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F8" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F8" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="تطبيق الفاتورة" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -69,7 +69,7 @@
             <Button Command="{Binding ToggleReturnModeCommand}" Style="{StaticResource PosActionButton}" Background="#D3277B" Margin="4,3">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#A2165F" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F9" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F9" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="وضع المرتجع" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -77,7 +77,7 @@
             <Button Command="{Binding OpenCashDrawerCommand}" Style="{StaticResource PosActionButton}" Background="#3F5A73" Margin="4,3">
                 <StackPanel Orientation="Horizontal">
                     <Border Background="#0A5A96" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                        <TextBlock Text="F10" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F10" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <TextBlock Text="فتح الدرج" Foreground="White" FontWeight="Bold" />
                 </StackPanel>
@@ -125,39 +125,39 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="اختصارات لوحة المفاتيح ▴" Foreground="White" FontWeight="Bold" FontSize="12" />
-                    <TextBlock Text="قرّب الماوس لعرضها" Foreground="#B9D6E8" FontSize="11" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    <TextBlock Text="اختصارات لوحة المفاتيح ▴" Foreground="White" FontWeight="Bold" FontSize="13" />
+                    <TextBlock Text="قرّب الماوس لعرضها" Foreground="#B9D6E8" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F1" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F1" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F2" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F2" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F3" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F3" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F4" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F4" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F8" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F8" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F9" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F9" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="F10" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="F10" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                     <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
-                        <TextBlock Text="Del" Foreground="White" FontSize="11" FontWeight="Bold" />
+                        <TextBlock Text="Del" Foreground="White" FontSize="12" FontWeight="Bold" />
                     </Border>
                 </StackPanel>
 
                 <TextBlock x:Name="FooterCredit" Grid.Column="2" Text="E-Prescriptions by Maged Fayez | (C) all rights reserved" FlowDirection="LeftToRight"
-                           Foreground="#DCF1FB" FontSize="11" VerticalAlignment="Center" />
+                           Foreground="#DCF1FB" FontSize="12" VerticalAlignment="Center" />
             </Grid>
         </Border>
     </StackPanel>
