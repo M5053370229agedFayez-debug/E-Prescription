@@ -339,7 +339,7 @@ namespace ePrescriptions.Data.Repositories
                 }
                 catch (Exception ex)
                 {
-                    try { trans.Rollback(); } catch { }
+                    try { trans.Rollback(); } catch (Exception rbEx) { Logger.LogException(rbEx, "SavePurchaseInvoice.Rollback"); }
                     errorMessage = ex.Message;
                     Logger.LogException(ex, "SavePurchaseInvoice.Transaction");
                     return false;
