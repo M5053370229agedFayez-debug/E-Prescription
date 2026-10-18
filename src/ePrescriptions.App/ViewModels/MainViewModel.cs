@@ -107,6 +107,10 @@ namespace ePrescriptions.App.ViewModels
         public bool CanAccessPriceListImport => IsAdminOrOwner;
         public bool CanAccessOpeningStock => CanAccessInventory;
 
+        // ظهور تصنيفات القائمة العلوية: التصنيف يختفي لو مفيش فيه أي شاشة مسموحة للمستخدم
+        public bool CanSeeStockMenu => CanAccessInventory || CanAccessOpeningStock || CanAccessPriceListImport;
+        public bool CanSeeAccountsMenu => CanAccessCustomers || CanAccessFinance || CanAccessZakat;
+
 
         // أوامر الأمان والجلسة
         public IRelayCommand LockScreenCommand { get; }
@@ -218,6 +222,8 @@ namespace ePrescriptions.App.ViewModels
             OnPropertyChanged(nameof(CanAccessSettings));
             OnPropertyChanged(nameof(CanAccessPriceListImport));
             OnPropertyChanged(nameof(CanAccessOpeningStock));
+            OnPropertyChanged(nameof(CanSeeStockMenu));
+            OnPropertyChanged(nameof(CanSeeAccountsMenu));
             OnPropertyChanged(nameof(HasBackupAlert));
 
             // إعادة تقييم CanExecute لكل أوامر التنقل بعد تغيّر الجلسة (دخول/خروج/قفل)

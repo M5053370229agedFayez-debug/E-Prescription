@@ -746,7 +746,22 @@ namespace ePrescriptions.App.ViewModels
             }
         }
 
+        // خيار "إضافة للصافي": لو شغّال (الافتراضي) المصاريف الإضافية بتتضاف على صافي المستحق، ولو مقفول بتتسجل بس من غير ما تأثر على الصافي
+        private bool _addExpensesToNet = true;
+        public bool AddExpensesToNet
+        {
+            get => _addExpensesToNet;
+            set
+            {
+                if (SetProperty(ref _addExpensesToNet, value))
+                {
+                    RecalculateTotals();
+                }
+            }
+        }
+
         public long AdditionalExpensesPiastres => Money.FromPounds(AdditionalExpensesPounds).Piastres;
+        private long ExpensesInNetPiastres => AddExpensesToNet ? AdditionalExpensesPiastres : 0;
         public decimal AdditionalExpensesRiyals => AdditionalExpensesPounds;
 
         // مرادفات بالجنيه
@@ -937,6 +952,8 @@ namespace ePrescriptions.App.ViewModels
             _invoiceDiscountValue = 0;
             _invoiceDiscountIsPercent = false;
             _additionalExpensesPounds = 0;
+            _addExpensesToNet = true;
+            OnPropertyChanged(nameof(AddExpensesToNet));
             OnPropertyChanged(nameof(InvoiceDiscountValue));
             OnPropertyChanged(nameof(InvoiceDiscountIsPercent));
             OnPropertyChanged(nameof(AdditionalExpensesPounds));
@@ -1452,9 +1469,9 @@ namespace ePrescriptions.App.ViewModels
             DiscountPiastres = itemsDisc + invDiscPiastres;
             VatPiastres = vat;
 
-            // الصافي = المجموع بعد الخصم + الضريبة + المصروفات الإضافية
+            // الصافي = المجموع بعد الخصم + الضريبة + المصروفات الإضافية (لو خيار "إضافة للصافي" مفعّل)
             long netAfterDiscount = Math.Max(0, sub - DiscountPiastres);
-            NetTotalPiastres = Math.Max(0, netAfterDiscount + VatPiastres + AdditionalExpensesPiastres);
+            NetTotalPiastres = Math.Max(0, netAfterDiscount + VatPiastres + ExpensesInNetPiastres);
 
             if (SelectedPaymentMethod == PaymentMethod.Cash || SelectedPaymentMethod == PaymentMethod.Network)
             {
@@ -1579,7 +1596,9 @@ namespace ePrescriptions.App.ViewModels
                     TotalPiastres = NetTotalPiastres,
                     PaidPiastres = Money.FromPounds(PaidRiyals).Piastres,
                     RemainingPiastres = RemainingPiastres,
-                    Notes = AdditionalExpensesPounds > 0 ? $"مصروفات إضافية: {AdditionalExpensesPounds:N2} ج.م" : null,
+                    Notes = AdditionalExpensesPounds > 0
+                        ? (AddExpensesToNet ? $"مصروفات إضافية: {AdditionalExpensesPounds:N2} ج.م" : $"مصروفات إضافية (غير مضافة للصافي): {AdditionalExpensesPounds:N2} ج.م")
+                        : null,
                     QrCodeText = qrText,
                     OriginalInvoiceId = IsReturnMode ? _returnSource?.Invoice.Id : null
                 };

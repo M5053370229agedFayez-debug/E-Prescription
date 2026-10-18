@@ -43,14 +43,16 @@
                     <RowDefinition Height="Auto" />
                     <!-- جدول بنود الفاتورة الرئيسي (DataGrid Virtualized) -->
                     <RowDefinition Height="*" />
-                    <!-- شريط المجاميع وصافي المستحق -->
-                    <RowDefinition Height="Auto" />
-                    <!-- شريط أزرار الاختصارات الوظيفية (F1..F10) -->
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <!-- العمود الرئيسي (العميل + البحث + جدول الأصناف) بيتقلص لو النافذة صغيرة -->
+                    <ColumnDefinition Width="*" MinWidth="300" />
+                    <!-- لوحة ملخص الفاتورة: عرض ثابت -->
+                    <ColumnDefinition Width="340" />
+                </Grid.ColumnDefinitions>
 
                 <!-- 1) رأس الشاشة: تدرج أنيق مع شريط شفاف للمعلومات -->
-                <Border Grid.Row="0" Background="{StaticResource HeaderGradient}" CornerRadius="12,12,0,0" Padding="16,12">
+                <Border Grid.Row="0" Grid.ColumnSpan="2" Background="{StaticResource HeaderGradient}" CornerRadius="12,12,0,0" Padding="16,12">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -75,14 +77,8 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- أزرار التنقل بين الفواتير السابقة وإشعار الحالة -->
+                        <!-- زر سجل الفواتير السابقة وإشعار الحالة (السابقة/التالية نقلوا لشريط الاختصارات السفلي) -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Command="{Binding PreviousInvoiceCommand}" Background="#0284C7" Foreground="White" BorderThickness="0" Padding="8,5" Margin="0,0,4,0" Cursor="Hand" ToolTip="استعراض الفاتورة السابقة">
-                                <TextBlock Text="◀ السابقة" FontWeight="Bold" FontSize="11" />
-                            </Button>
-                            <Button Command="{Binding NextInvoiceCommand}" Background="#0284C7" Foreground="White" BorderThickness="0" Padding="8,5" Margin="0,0,4,0" Cursor="Hand" ToolTip="استعراض الفاتورة التالية">
-                                <TextBlock Text="التالية ▶" FontWeight="Bold" FontSize="11" />
-                            </Button>
                             <Button Command="{Binding OpenInvoiceHistoryCommand}" Background="#1E293B" Foreground="White" BorderThickness="0" Padding="8,5" Margin="0,0,8,0" Cursor="Hand" ToolTip="عرض سجل الفواتير السابقة">
                                 <TextBlock Text="📋 الفواتير السابقة" FontWeight="Bold" FontSize="11" />
                             </Button>
@@ -94,7 +90,7 @@
                 </Border>
 
                 <!-- شريط تنبيه عند استعراض فاتورة سابقة -->
-                <Border Grid.Row="0" Margin="0,50,0,0" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Padding="12,6"
+                <Border Grid.Row="0" Grid.ColumnSpan="2" Margin="0,50,0,0" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Padding="12,6"
                         Visibility="{Binding IsViewingHistoricalInvoice, Converter={StaticResource BoolToVis}}" Panel.ZIndex="10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -525,260 +521,189 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- 5) شريط المجاميع وصافي المستحق والمدفوع والمتبقي -->
-                <Border Grid.Row="4" Background="#F1F5F9" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,1" Padding="12,6">
+                <!-- 5) لوحة ملخص الفاتورة (على الجانب الأيسر): كل المجاميع والخصم والمصاريف والدفع وأزرار الحفظ والطباعة -->
+                <Border Grid.Row="1" Grid.RowSpan="3" Grid.Column="1" Margin="12,8" Padding="14"
+                        Background="#F8FAFC" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="10">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />  <!-- 0 العنوان وعدد الأصناف -->
+                            <RowDefinition Height="Auto" />  <!-- 1 المجموع قبل الضريبة -->
+                            <RowDefinition Height="Auto" />  <!-- 2 ضريبة القيمة المضافة -->
+                            <RowDefinition Height="Auto" />  <!-- 3 خصم الفاتورة -->
+                            <RowDefinition Height="Auto" />  <!-- 4 مصاريف إضافية -->
+                            <RowDefinition Height="Auto" />  <!-- 5 فاصل -->
+                            <RowDefinition Height="Auto" />  <!-- 6 صافي المستحق -->
+                            <RowDefinition Height="Auto" />  <!-- 7 المدفوع -->
+                            <RowDefinition Height="Auto" />  <!-- 8 المتبقي / آجل -->
+                            <RowDefinition Height="*" MinHeight="8" />  <!-- 9 مسافة تتمدد -->
+                            <RowDefinition Height="Auto" />  <!-- 10 حفظ -->
+                            <RowDefinition Height="Auto" />  <!-- 11 طباعة -->
+                        </Grid.RowDefinitions>
 
-                        <!-- تفاصيل إحصائية سريعة -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="عدد الأصناف: " Foreground="#64748B" FontWeight="Bold" />
-                            <TextBlock Text="{Binding CartItems.Count}" Foreground="#0B2A45" FontWeight="Bold" Margin="0,0,16,0" />
-                        </StackPanel>
-
-                        <!-- المجموع الفرعي -->
-                        <Border Grid.Column="1" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="4,0">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="المجموع قبل الضريبة" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding SubtotalRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="14" FontWeight="Bold" Foreground="#0B2A45" HorizontalAlignment="Center" />
+                        <!-- 1) صف العنوان -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="ملخص الفاتورة" FontSize="16" FontWeight="Bold" Foreground="#0B2A45" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="عدد الأصناف: " Foreground="#64748B" FontWeight="SemiBold" FontSize="12" />
+                                <TextBlock Text="{Binding CartItems.Count}" Foreground="#0B2A45" FontWeight="Bold" FontSize="12" />
                             </StackPanel>
-                        </Border>
+                        </Grid>
 
-                        <!-- الخصم على الفاتورة -->
-                        <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="8,4" Margin="4,0">
-                            <StackPanel HorizontalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
-                                    <TextBlock Text="خصم الفاتورة:" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" />
-                                    <Border CornerRadius="3" BorderBrush="#0284C7" BorderThickness="1" Background="#E0F2FE" Margin="4,0,0,0" VerticalAlignment="Center">
-                                        <Button Command="{Binding ToggleDiscountTypeCommand}" Background="Transparent" BorderThickness="0" Padding="5,1" Cursor="Hand" ToolTip="التبديل بين خصم بالمبلغ (ج.م) أو نسبة مئوية (%)">
-                                            <TextBlock Text="{Binding DiscountTypeDisplay}" FontSize="10" FontWeight="Bold" Foreground="#0369A1" />
-                                        </Button>
-                                    </Border>
+                        <!-- 2) المجموع قبل الضريبة -->
+                        <Grid Grid.Row="1" Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="المجموع قبل الضريبة" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding SubtotalRiyals, StringFormat='{}{0:N2} ج.م'}" FontWeight="Bold" Foreground="#0B2A45" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- 3) ضريبة القيمة المضافة -->
+                        <Grid Grid.Row="2" Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="ضريبة القيمة المضافة" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding VatRiyals, StringFormat='{}{0:N2} ج.م'}" FontWeight="Bold" Foreground="#0083CB" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- 4) خصم الفاتورة: مفتاح (ج.م / %) صغير جنب الحقل وسطر "خصم: ..." تحت التسمية -->
+                        <Grid Grid.Row="3" Margin="0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="خصم الفاتورة" Foreground="#64748B" />
+                                <TextBlock Text="{Binding DiscountRiyals, StringFormat='خصم: {0:N2} ج.م'}" FontSize="10.5" Foreground="#DC2626" FontWeight="SemiBold" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border CornerRadius="3" BorderBrush="#0284C7" BorderThickness="1" Background="#E0F2FE" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <Button Command="{Binding ToggleDiscountTypeCommand}" Background="Transparent" BorderThickness="0" Padding="6,2" Cursor="Hand" ToolTip="التبديل بين خصم بالمبلغ (ج.م) أو نسبة مئوية (%)">
+                                        <TextBlock Text="{Binding DiscountTypeDisplay}" FontSize="11" FontWeight="Bold" Foreground="#0369A1" />
+                                    </Button>
+                                </Border>
+                                <TextBox Text="{Binding InvoiceDiscountValue, UpdateSourceTrigger=PropertyChanged}" Width="100" Height="28" FontSize="13" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Style="{StaticResource AppTextBox}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 5) مصاريف إضافية (توصيل/خدمة) -->
+                        <Grid Grid.Row="4" Margin="0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="مصاريف إضافية (توصيل/خدمة)" Foreground="#64748B" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,5,8,0" />
+                            <StackPanel Grid.Column="1">
+                                <TextBox Text="{Binding AdditionalExpensesPounds, UpdateSourceTrigger=PropertyChanged}" Width="100" Height="28" FontSize="13" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Style="{StaticResource AppTextBox}" />
+                                <CheckBox IsChecked="{Binding AddExpensesToNet}" Content="إضافة للصافي" FontSize="11" Margin="0,4,0,0"
+                                          ToolTip="لو مفعّل، مصاريف التوصيل/الخدمة بتتضاف على صافي الفاتورة" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 6) فاصل أفقي رفيع -->
+                        <Border Grid.Row="5" Height="1" Background="#CBD5E1" Margin="0,10" />
+
+                        <!-- 7) صافي المستحق: أهم رقم في اللوحة -->
+                        <Border Grid.Row="6" Background="#0A4C86" CornerRadius="8" Padding="14,10" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="صافي المستحق (Net)" FontSize="12" Foreground="#38BDF8" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                    <TextBlock Text="{Binding TotalNetRiyals, StringFormat='{}{0:N2}'}" FontSize="32" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
+                                    <TextBlock Text="ج.م" FontSize="16" FontWeight="SemiBold" Foreground="#BAE6FD" VerticalAlignment="Bottom" Margin="8,0,0,6" />
                                 </StackPanel>
-                                <TextBox Text="{Binding InvoiceDiscountValue, UpdateSourceTrigger=PropertyChanged}" Width="75" Height="26" FontSize="13" FontWeight="Bold" TextAlignment="Center" Style="{StaticResource AppTextBox}" />
-                                <TextBlock Text="{Binding DiscountRiyals, StringFormat='خصم: {0:N2} ج.م'}" FontSize="9.5" Foreground="#DC2626" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0" />
                             </StackPanel>
                         </Border>
 
-                        <!-- مصاريف إضافية (توصيل / خدمة) -->
-                        <Border Grid.Column="3" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="8,4" Margin="4,0">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="مصاريف إضافية (توصيل/خدمة):" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,0,0,2" />
-                                <TextBox Text="{Binding AdditionalExpensesPounds, UpdateSourceTrigger=PropertyChanged}" Width="75" Height="26" FontSize="13" FontWeight="Bold" TextAlignment="Center" Style="{StaticResource AppTextBox}" />
-                                <TextBlock Text="+ إضافة للصافي" FontSize="9" Foreground="#0284C7" HorizontalAlignment="Center" Margin="0,1,0,0" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- إجمالي الضريبة -->
-                        <Border Grid.Column="4" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="4,0">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="ضريبة القيمة المضافة" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding VatRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="14" FontWeight="Bold" Foreground="#0083CB" HorizontalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- تمييز صافي المستحق الإجمالي بشكل بارز -->
-                        <Border Grid.Column="5" Background="#0A4C86" CornerRadius="8" Padding="18,6" Margin="4,0">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="صافي المستحق (Net)" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding TotalNetRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- المبلغ المدفوع -->
-                        <Border Grid.Column="6" Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="4,0">
+                        <!-- 8) المدفوع: خانة واحدة، أو توزيع مقسّم لو طريقة الدفع "دفع مقسّم" -->
+                        <Grid Grid.Row="7" Margin="0,4">
+                            <!-- دفع بطريقة واحدة (تختفي في الدفع المقسّم) -->
                             <Grid>
-                                <!-- دفع بطريقة واحدة: خانة المدفوع (تختفي في الدفع المقسّم) -->
-                                <StackPanel HorizontalAlignment="Center">
-                                    <StackPanel.Style>
-                                        <Style TargetType="StackPanel">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsMixedPayment}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </StackPanel.Style>
-                                    <TextBlock Text="المدفوع:" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                    <TextBox Text="{Binding PaidRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}" 
-                                             FontSize="16" FontWeight="Bold" TextAlignment="Center" Width="90" BorderThickness="0" Background="Transparent" />
-                                </StackPanel>
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMixedPayment}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="المدفوع" Foreground="#64748B" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding PaidRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
+                                         Width="130" Height="28" FontSize="14" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Style="{StaticResource AppTextBox}" />
+                            </Grid>
 
-                                <!-- الدفع المقسّم (خطوة 36): النقدي = الباقي تلقائياً -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
-                                            Visibility="{Binding IsMixedPayment, Converter={StaticResource BoolToVis}}">
-                                    <StackPanel Margin="4,0">
-                                        <TextBlock Text="نقدي (الباقي)" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                        <TextBlock Text="{Binding SplitCashRiyals, StringFormat='{}{0:N2}'}" FontSize="16" FontWeight="Bold" Foreground="#047857" HorizontalAlignment="Center" Width="80" TextAlignment="Center" />
-                                    </StackPanel>
-                                    <StackPanel Margin="4,0">
-                                        <TextBlock Text="شبكة" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                        <TextBox Text="{Binding SplitNetworkRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
-                                                 FontSize="16" FontWeight="Bold" TextAlignment="Center" Width="80" BorderThickness="0" Background="Transparent" />
-                                    </StackPanel>
-                                    <StackPanel Margin="4,0">
-                                        <TextBlock Text="آجل" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                        <TextBox Text="{Binding SplitOnAccountRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
-                                                 FontSize="16" FontWeight="Bold" TextAlignment="Center" Width="80" BorderThickness="0" Background="Transparent" />
-                                    </StackPanel>
-                                    <StackPanel Margin="4,0">
-                                        <TextBlock Text="تأمين" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" />
-                                        <TextBox Text="{Binding SplitInsuranceRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
-                                                 FontSize="16" FontWeight="Bold" TextAlignment="Center" Width="80" BorderThickness="0" Background="Transparent" />
-                                    </StackPanel>
-                                </StackPanel>
+                            <!-- الدفع المقسّم: النقدي = الباقي تلقائياً -->
+                            <StackPanel Visibility="{Binding IsMixedPayment, Converter={StaticResource BoolToVis}}">
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="نقدي (الباقي)" Foreground="#64748B" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SplitCashRiyals, StringFormat='{}{0:N2}'}" Width="130" TextAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#047857" VerticalAlignment="Center" />
+                                </Grid>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="شبكة" Foreground="#64748B" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1" Text="{Binding SplitNetworkRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
+                                             Width="130" Height="28" FontSize="14" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Style="{StaticResource AppTextBox}" />
+                                </Grid>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="آجل" Foreground="#64748B" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1" Text="{Binding SplitOnAccountRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
+                                             Width="130" Height="28" FontSize="14" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Style="{StaticResource AppTextBox}" />
+                                </Grid>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="تأمين" Foreground="#64748B" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1" Text="{Binding SplitInsuranceRiyals, StringFormat='{}{0:N2}', UpdateSourceTrigger=PropertyChanged}"
+                                             Width="130" Height="28" FontSize="14" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Style="{StaticResource AppTextBox}" />
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 9) المتبقي / آجل (تحذيري) -->
+                        <Border Grid.Row="8" Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="المتبقي / آجل" FontWeight="Bold" Foreground="#DC2626" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding RemainingRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="18" FontWeight="Bold" Foreground="#DC2626" VerticalAlignment="Center" />
                             </Grid>
                         </Border>
 
-                        <!-- المتبقي / مديونية -->
-                        <Border Grid.Column="7" Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="4,0">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="المتبقي / آجل" FontSize="11" Foreground="#DC2626" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding RemainingRiyals, StringFormat='{}{0:N2} ج.م'}" FontSize="15" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
+                        <!-- 11) حفظ الفاتورة (الزر الأساسي) -->
+                        <Button Grid.Row="10" Command="{Binding SaveInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#10B981" Padding="12,14" Margin="0,12,0,0">
+                            <TextBlock Text="حفظ الفاتورة  F2" FontSize="17" FontWeight="Bold" Foreground="White" />
+                        </Button>
 
-                <!-- 6) شريط أزرار الاختصارات الوظيفية (F1, F2, F3, F4, F8, F9, F10) -->
-                <Border Grid.Row="5" Background="#0155A5" CornerRadius="0,0,12,12" Padding="8,5">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <!-- مجموعة الأزرار السريعة -->
-                        <WrapPanel Grid.Column="0" Orientation="Horizontal">
-                            <!-- F1: جديد -->
-                            <Button Command="{Binding NewInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0083CB" Margin="4,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#0155A5" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F1" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="فاتورة جديدة" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- F2: حفظ الفاتورة -->
-                            <Button Command="{Binding SaveInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#10B981" Margin="4,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#047857" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F2" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="حفظ الفاتورة" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- F3: طباعة -->
-                            <Button Command="{Binding PrintInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#02ABE1" Margin="4,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#4338CA" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F3" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="طباعة إيصال" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- F4: بحث يدوي عن صنف -->
-                            <Button Command="{Binding OpenItemSearchCommand}" Style="{StaticResource PosActionButton}" Background="#059669" Margin="4,2" ToolTip="البحث اليدوي عن صنف وإضافته للفاتورة (F4)">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#065F46" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F4" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="بحث عن صنف" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- Delete: حذف الصنف المحدد -->
-                            <Button Command="{Binding RemoveSelectedItemCommand}" Style="{StaticResource PosActionButton}" Background="#EF4444" Margin="4,2" ToolTip="حذف الصنف المحدد حالياً من الفاتورة (زر Delete)">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#B91C1C" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="Del" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="حذف الصنف" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- ◀ الفاتورة السابقة -->
-                            <Button Command="{Binding PreviousInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0284C7" Margin="4,2" ToolTip="استعراض الفاتورة السابقة">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="◀ السابقة" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- التالية ▶ -->
-                            <Button Command="{Binding NextInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0284C7" Margin="4,2" ToolTip="استعراض الفاتورة التالية">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="التالية ▶" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- 📋 سجل الفواتير السابقة -->
-                            <Button Command="{Binding OpenInvoiceHistoryCommand}" Style="{StaticResource PosActionButton}" Background="#334155" Margin="4,2" ToolTip="عرض سجل الفواتير السابقة واستعراضها">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📋 الفواتير السابقة" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- F8: تعليق الفاتورة -->
-                            <Button Command="{Binding SuspendInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#F59E0B" Margin="4,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#B45309" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F8" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="تعليق الفاتورة" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- F9: مرتجع -->
-                            <Button Command="{Binding ToggleReturnModeCommand}" Style="{StaticResource PosActionButton}" Background="#D3277B" Margin="4,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#A2165F" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F9" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="وضع المرتجع" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- F10: فتح الدرج -->
-                            <Button Command="{Binding OpenCashDrawerCommand}" Style="{StaticResource PosActionButton}" Background="#3F5A73" Margin="4,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#0A5A96" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <TextBlock Text="F10" Foreground="White" FontSize="11" FontWeight="Bold" />
-                                    </Border>
-                                    <TextBlock Text="فتح الدرج" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- إلغاء فاتورة (مدير/صاحب الصيدلية): بيظهر/يخفي لوحة الإلغاء -->
-                            <Button Command="{Binding ToggleCancelPanelCommand}" Style="{StaticResource PosActionButton}" Background="#EA580C" Margin="4,2"
-                                    Visibility="{Binding CanCancelInvoice, Converter={StaticResource BoolToVis}}"
-                                    ToolTip="إظهار أو إخفاء لوحة إلغاء فاتورة بالرقم (للمدير وصاحب الصيدلية فقط)">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="إلغاء فاتورة" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- تراجع عن الفاتورة الأخيرة -->
-                            <Button Command="{Binding UndoLastSavedInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#DC2626" Margin="4,2" ToolTip="التراجع عن آخر فاتورة بيع تم حفظها وإلغاؤها واسترجاع أصنافها للمخزون">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#991B1B" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
-                                        <Path Data="{StaticResource IconReturn}" Fill="White" Width="10" Height="10" Stretch="Uniform" />
-                                    </Border>
-                                    <TextBlock Text="تراجع عن الفاتورة" Foreground="White" FontWeight="Bold" />
-                                </StackPanel>
-                            </Button>
-                        </WrapPanel>
+                        <!-- 12) طباعة إيصال (ثانوي) -->
+                        <Button Grid.Row="11" Command="{Binding PrintInvoiceCommand}" Style="{StaticResource PosSecondaryButton}" Padding="12,9" Margin="0,8,0,0">
+                            <TextBlock Text="طباعة إيصال  F3" FontSize="13" FontWeight="SemiBold" Foreground="#0A4C86" />
+                        </Button>
                     </Grid>
                 </Border>
             </Grid>

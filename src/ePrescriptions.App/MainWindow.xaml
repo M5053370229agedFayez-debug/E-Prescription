@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:ePrescriptions.App.ViewModels"
         xmlns:views="clr-namespace:ePrescriptions.App.Views"
+        xmlns:svc="clr-namespace:ePrescriptions.App.Services"
         mc:Ignorable="d"
         Title="E-Prescriptions - النظام المتكامل لإدارة الصيدليات والوصفات الطبية"
         Icon="pack://application:,,,/Resources/app.ico"
@@ -22,6 +23,93 @@
     <!-- تعيين DataTemplates لربط كل ViewModel بـ View الخاصة به -->
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <svc:ViewTypeMatchConverter x:Key="ViewMatch" />
+
+        <!-- ===== القائمة العلوية بالتصنيفات =====
+             ملاحظة: ستايل TextBlock الافتراضي بيفرض لون غامق، فبنربط لون أي TextBlock جوه الزر بلون الزر نفسه -->
+        <Style x:Key="MenuCategoryButton" TargetType="Button">
+            <Style.Resources>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                    <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Style>
+            </Style.Resources>
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#0B3556" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="18,9">
+                            <Grid>
+                                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                <Border x:Name="Underline" Height="3" VerticalAlignment="Bottom" Margin="0,0,0,-9" Background="#0083CB" Visibility="Collapsed" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="#0155A5" />
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EAF5FB" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MenuItemButton" TargetType="Button">
+            <Style.Resources>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                    <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Style>
+            </Style.Resources>
+            <EventSetter Event="Click" Handler="MenuItem_Click" />
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="#0B3556" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="16,9">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#CFE8F7" />
+                                <Setter Property="Foreground" Value="#0155A5" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EAF5FB" />
+                                <Setter Property="Foreground" Value="#0155A5" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#94A3B8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MenuPopupBorder" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#B9D6E8" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="MinWidth" Value="200" />
+            <Setter Property="Padding" Value="0,4" />
+        </Style>
 
         <DataTemplate DataType="{x:Type vm:SalesViewModel}">
             <views:SalesView />
@@ -94,10 +182,8 @@
             <RowDefinition Height="46" />
             <!-- شريط تنبيه النسخ الاحتياطي (يظهر عند وجود مشكلة فقط) -->
             <RowDefinition Height="Auto" />
-            <!-- المحتوى والشريط الجانبي -->
+            <!-- المحتوى (القائمة العلوية + الشاشة الحالية) -->
             <RowDefinition Height="*" />
-            <!-- الفوتر: تحت خالص -->
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- 1) الشريط العلوي العام للتطبيق -->
@@ -164,240 +250,166 @@
             </Grid>
         </Border>
 
-        <!-- 2) المحتوى الرئيسي: شريط جانبي يمين + شاشة العرض يسار -->
+        <!-- 2) المحتوى الرئيسي: القائمة العلوية بالتصنيفات + شاشة العرض -->
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
-                <!-- قائمة التنقل داخل الهيدر -->
-                <RowDefinition Height="Auto" />
-                <!-- شريط الشاشات المنفصلة السريع (Multi-Window) -->
+                <!-- القائمة العلوية بالتصنيفات -->
                 <RowDefinition Height="Auto" />
                 <!-- الشاشة المعروضة حالياً -->
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- الشريط الجانبي للوحدات -->
-            <Border Grid.Row="0" Background="White" BorderBrush="#D5E4EE" BorderThickness="0,0,0,1">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="120">
-                    <WrapPanel Margin="6,4,6,4">
-                        <!-- نقطة البيع (المبيعات) - الافتراضية -->
-                        <RadioButton Command="{Binding NavigateSalesCommand}" Style="{StaticResource SidebarNavButton}" IsChecked="True">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconSales}" Fill="#0083CB" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="المبيعات (F1)" FontWeight="Bold" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- إدارة المخزون والأدوية -->
-                        <RadioButton Command="{Binding NavigateInventoryCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessInventory, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconInventory}" Fill="#D3277B" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="المخزون والأدوية" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- المشتريات والموردون -->
-                        <RadioButton Command="{Binding NavigatePurchasesCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconPurchases}" Fill="#32992B" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="المشتريات والموردون" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- أوامر الشراء -->
-                        <RadioButton Command="{Binding NavigatePurchaseOrdersCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconPurchases}" Fill="#0155A5" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="أوامر الشراء" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- مرتجع / إتلاف المنتهي -->
-                        <RadioButton Command="{Binding NavigateSupplierReturnsCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconPurchases}" Fill="#E7387D" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="مرتجع / إتلاف المنتهي" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- جرد بالباركود -->
-                        <RadioButton Command="{Binding NavigateStocktakeCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessInventory, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconInventory}" Fill="#32992B" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="الجرد بالباركود" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- رصيد أول المدة (بضاعة أول المدة) -->
-                        <RadioButton Command="{Binding NavigateOpeningStockCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessOpeningStock, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconOpeningStock}" Fill="#10B981" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="رصيد أول المدة" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- تحديث الأسعار من Excel (Admin/Owner) -->
-                        <RadioButton Command="{Binding NavigatePriceListImportCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessPriceListImport, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconPurchases}" Fill="#0083CB" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="تحديث الأسعار (Excel)" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- العملاء والآجل -->
-                        <RadioButton Command="{Binding NavigateCustomersCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessCustomers, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconCustomers}" Fill="#E7387D" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="حسابات العملاء" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- المالية والمصروفات -->
-                        <RadioButton Command="{Binding NavigateFinanceCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessFinance, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconFinance}" Fill="#7BB82D" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="الحسابات والمالية" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- سجل نشاطي: يظهر فقط لحساب صاحب الصيدلية -->
-                        <RadioButton Command="{Binding NavigateOwnerLogCommand}" Style="{StaticResource SidebarNavButton}"
-                                     Visibility="{Binding IsOwner, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconReports}" Fill="#A2165F" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="سجل نشاطي" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- سجل نشاط الموظفين: يظهر للمدير وصاحب الصيدلية فقط (لا يحتوي تعديلات Owner) -->
-                        <RadioButton Command="{Binding NavigateStaffAuditLogCommand}" Style="{StaticResource SidebarNavButton}"
-                                     Visibility="{Binding IsAdminOrOwner, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconReports}" Fill="#02ABE1" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="سجل نشاط الموظفين" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- الموظفون والورديات -->
-                        <RadioButton Command="{Binding NavigateStaffCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessStaff, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconStaff}" Fill="#0155A5" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="الموظفون والورديات" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- حساب الزكاة الشرعية -->
-                        <RadioButton Command="{Binding NavigateZakatCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessZakat, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconZakat}" Fill="#7BB82D" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="حاسبة الزكاة" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- التقارير الشاملة -->
-                        <RadioButton Command="{Binding NavigateReportsCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessReports, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconReports}" Fill="#0155A5" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="التقارير والإحصاءات" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <Border Width="1" Height="24" Background="#D5E4EE" Margin="8,0" />
-
-                        <!-- الإعدادات والطابعات -->
-                        <RadioButton Command="{Binding NavigateSettingsCommand}" Style="{StaticResource SidebarNavButton}" Visibility="{Binding CanAccessSettings, Converter={StaticResource BoolToVis}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconSettings}" Fill="#5B7389" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="إعدادات النظام" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <!-- شاشة الاختصارات والمساعدة -->
-                        <RadioButton Command="{Binding NavigateHelpCommand}" Style="{StaticResource SidebarNavButton}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconHelp}" Fill="#0083CB" Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" />
-                                <TextBlock Text="الاختصارات والتعليمات" />
-                            </StackPanel>
-                        </RadioButton>
-                    </WrapPanel>
-                </ScrollViewer>
-            </Border>
-
-            <!-- شريط الشاشات المنفصلة السريع (Multi-Window) -->
-            <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,6">
+            <Border Grid.Row="0" Background="White" BorderBrush="#D5E4EE" BorderThickness="0,0,0,1" Panel.ZIndex="10">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Background="#E0F2FE" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
-                            <TextBlock Text="الشاشة المعروضة:" Foreground="#0369A1" FontSize="11" FontWeight="SemiBold" />
-                        </Border>
-                        <TextBlock Text="{Binding CurrentViewTitle}" Foreground="#1E293B" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" />
+                    <!-- التصنيفات من اليمين لليسار (RTL) -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="6,0">
+                        <Button x:Name="CatTrade" Style="{StaticResource MenuCategoryButton}" Content="البيع والشراء ▾"
+                                Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=SalesViewModel|PurchasesViewModel|PurchaseOrdersViewModel|SupplierReturnsViewModel}"
+                                MouseEnter="Category_MouseEnter" MouseLeave="Category_MouseLeave" Click="Category_Click" />
+                        <Button x:Name="CatStock" Style="{StaticResource MenuCategoryButton}" Content="المخزون ▾"
+                                Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=InventoryViewModel|StocktakeViewModel|OpeningStockViewModel|PriceListImportViewModel}"
+                                Visibility="{Binding CanSeeStockMenu, Converter={StaticResource BoolToVis}}"
+                                MouseEnter="Category_MouseEnter" MouseLeave="Category_MouseLeave" Click="Category_Click" />
+                        <Button x:Name="CatAccounts" Style="{StaticResource MenuCategoryButton}" Content="الحسابات ▾"
+                                Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=CustomersViewModel|FinanceViewModel|ZakatViewModel}"
+                                Visibility="{Binding CanSeeAccountsMenu, Converter={StaticResource BoolToVis}}"
+                                MouseEnter="Category_MouseEnter" MouseLeave="Category_MouseLeave" Click="Category_Click" />
+                        <Button x:Name="CatAdmin" Style="{StaticResource MenuCategoryButton}" Content="الإدارة ▾"
+                                Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=StaffViewModel|StaffAuditLogViewModel|OwnerLogViewModel|ReportsViewModel|SettingsViewModel|HelpViewModel}"
+                                MouseEnter="Category_MouseEnter" MouseLeave="Category_MouseLeave" Click="Category_Click" />
+                        <Popup x:Name="PopTrade" PlacementTarget="{Binding ElementName=CatTrade}" Placement="Bottom"
+                               StaysOpen="True" AllowsTransparency="False" PopupAnimation="None" FlowDirection="RightToLeft">
+                            <Border Style="{StaticResource MenuPopupBorder}" MouseEnter="PopupContent_MouseEnter" MouseLeave="PopupContent_MouseLeave">
+                                <StackPanel>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateSalesCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=SalesViewModel}">
+                                    <TextBlock Text="المبيعات (F1)" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigatePurchasesCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=PurchasesViewModel}"
+                                    Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="المشتريات والموردون" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigatePurchaseOrdersCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=PurchaseOrdersViewModel}"
+                                    Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="أوامر الشراء" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateSupplierReturnsCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=SupplierReturnsViewModel}"
+                                    Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="مرتجع / إتلاف المنتهي" />
+                                </Button>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                        <Popup x:Name="PopStock" PlacementTarget="{Binding ElementName=CatStock}" Placement="Bottom"
+                               StaysOpen="True" AllowsTransparency="False" PopupAnimation="None" FlowDirection="RightToLeft">
+                            <Border Style="{StaticResource MenuPopupBorder}" MouseEnter="PopupContent_MouseEnter" MouseLeave="PopupContent_MouseLeave">
+                                <StackPanel>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateInventoryCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=InventoryViewModel}"
+                                    Visibility="{Binding CanAccessInventory, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="المخزون والأدوية" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateStocktakeCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=StocktakeViewModel}"
+                                    Visibility="{Binding CanAccessInventory, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="الجرد بالباركود" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateOpeningStockCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=OpeningStockViewModel}"
+                                    Visibility="{Binding CanAccessOpeningStock, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="رصيد أول المدة" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigatePriceListImportCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=PriceListImportViewModel}"
+                                    Visibility="{Binding CanAccessPriceListImport, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="تحديث الأسعار (Excel)" />
+                                </Button>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                        <Popup x:Name="PopAccounts" PlacementTarget="{Binding ElementName=CatAccounts}" Placement="Bottom"
+                               StaysOpen="True" AllowsTransparency="False" PopupAnimation="None" FlowDirection="RightToLeft">
+                            <Border Style="{StaticResource MenuPopupBorder}" MouseEnter="PopupContent_MouseEnter" MouseLeave="PopupContent_MouseLeave">
+                                <StackPanel>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateCustomersCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=CustomersViewModel}"
+                                    Visibility="{Binding CanAccessCustomers, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="حسابات العملاء" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateFinanceCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=FinanceViewModel}"
+                                    Visibility="{Binding CanAccessFinance, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="الحسابات والمالية" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateZakatCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=ZakatViewModel}"
+                                    Visibility="{Binding CanAccessZakat, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="حاسبة الزكاة" />
+                                </Button>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                        <Popup x:Name="PopAdmin" PlacementTarget="{Binding ElementName=CatAdmin}" Placement="Bottom"
+                               StaysOpen="True" AllowsTransparency="False" PopupAnimation="None" FlowDirection="RightToLeft">
+                            <Border Style="{StaticResource MenuPopupBorder}" MouseEnter="PopupContent_MouseEnter" MouseLeave="PopupContent_MouseLeave">
+                                <StackPanel>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateStaffCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=StaffViewModel}"
+                                    Visibility="{Binding CanAccessStaff, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="الموظفون والصلاحيات" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateStaffAuditLogCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=StaffAuditLogViewModel}"
+                                    Visibility="{Binding IsAdminOrOwner, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="سجل نشاط الموظفين" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateOwnerLogCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=OwnerLogViewModel}"
+                                    Visibility="{Binding IsOwner, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="سجل نشاطي" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateReportsCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=ReportsViewModel}"
+                                    Visibility="{Binding CanAccessReports, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="التقارير والإحصاءات" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateSettingsCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=SettingsViewModel}"
+                                    Visibility="{Binding CanAccessSettings, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="إعدادات النظام" />
+                                </Button>
+                                <Button Style="{StaticResource MenuItemButton}" Command="{Binding NavigateHelpCommand}"
+                                        Tag="{Binding CurrentView, Converter={StaticResource ViewMatch}, ConverterParameter=HelpViewModel}">
+                                    <TextBlock Text="الاختصارات والتعليمات" />
+                                </Button>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- زر فتح الشاشة الحالية في نافذة مستقلة -->
-                        <Button Command="{Binding OpenCurrentInSeparateWindowCommand}"
-                                Background="#0284C7" Foreground="White" BorderThickness="0"
-                                Padding="12,5" Margin="0,0,8,0" Cursor="Hand"
-                                ToolTip="فتح هذه الشاشة في نافذة جديدة مستقلة لشاشات العرض المتعددة">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="⧉ فتح في نافذة مستقلة" FontWeight="Bold" FontSize="11" />
-                            </StackPanel>
-                        </Button>
-
-                        <Border Width="1" Height="20" Background="#CBD5E1" Margin="4,0,8,0" />
-
-                        <!-- أزرار مباشرة لفتح الشاشات الأساسية في نوافذ منفصلة -->
-                        <TextBlock Text="شاشات مستقلة:" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
-
-                        <Button Command="{Binding OpenSalesInSeparateWindowCommand}"
-                                Background="White" BorderBrush="#CBD5E1" BorderThickness="1"
-                                Padding="10,4" Margin="0,0,4,0" Cursor="Hand" ToolTip="فتح شاشة المبيعات (POS) في نافذة منفصلة">
-                            <TextBlock Text="+ المبيعات" Foreground="#0083CB" FontSize="11" FontWeight="Bold" />
-                        </Button>
-
-                        <Button Command="{Binding OpenPurchasesInSeparateWindowCommand}"
-                                Background="White" BorderBrush="#CBD5E1" BorderThickness="1"
-                                Padding="10,4" Margin="0,0,4,0" Cursor="Hand" ToolTip="فتح شاشة المشتريات والموردين في نافذة منفصلة"
-                                Visibility="{Binding CanAccessPurchases, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="+ المشتريات" Foreground="#32992B" FontSize="11" FontWeight="Bold" />
-                        </Button>
-
-                        <Button Command="{Binding OpenInventoryInSeparateWindowCommand}"
-                                Background="White" BorderBrush="#CBD5E1" BorderThickness="1"
-                                Padding="10,4" Margin="0,0,4,0" Cursor="Hand" ToolTip="فتح شاشة المخزون والأدوية في نافذة منفصلة"
-                                Visibility="{Binding CanAccessInventory, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="+ المخزون" Foreground="#D3277B" FontSize="11" FontWeight="Bold" />
-                        </Button>
-
-                        <Button Command="{Binding OpenCustomersInSeparateWindowCommand}"
-                                Background="White" BorderBrush="#CBD5E1" BorderThickness="1"
-                                Padding="10,4" Margin="0,0,4,0" Cursor="Hand" ToolTip="فتح شاشة حسابات العملاء والآجل في نافذة منفصلة"
-                                Visibility="{Binding CanAccessCustomers, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="+ العملاء" Foreground="#E7387D" FontSize="11" FontWeight="Bold" />
-                        </Button>
-
-                        <Button Command="{Binding OpenReportsInSeparateWindowCommand}"
-                                Background="White" BorderBrush="#CBD5E1" BorderThickness="1"
-                                Padding="10,4" Cursor="Hand" ToolTip="فتح شاشة التقارير والإحصاءات في نافذة منفصلة"
-                                Visibility="{Binding CanAccessReports, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="+ التقارير" Foreground="#0155A5" FontSize="11" FontWeight="Bold" />
-                        </Button>
-                    </StackPanel>
+                    <!-- زر فتح الشاشة الحالية في نافذة مستقلة (اتنقل من الصف القديم عشان الوظيفة ما تضيعش) -->
+                    <Button Grid.Column="1" Command="{Binding OpenCurrentInSeparateWindowCommand}"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,6" Margin="6,0" VerticalAlignment="Center"
+                            ToolTip="فتح هذه الشاشة في نافذة جديدة مستقلة لشاشات العرض المتعددة">
+                        <TextBlock Text="⧉" FontSize="16" FontWeight="Bold" Foreground="#0284C7" />
+                    </Button>
                 </Grid>
             </Border>
 
             <!-- منطقة عرض الشاشة الحالية -->
-            <ContentControl Grid.Row="2" Content="{Binding CurrentView}" Margin="6" />
+            <!-- هامش سفلي 46 عشان شريط الاختصارات (Overlay) ما يغطيش المحتوى -->
+            <ContentControl Grid.Row="1" Content="{Binding CurrentView}" Margin="6,6,6,46" />
         </Grid>
 
-        <!-- الفوتر: تحت خالص -->
-        <Border Grid.Row="3" Background="White" BorderBrush="#D5E4EE" BorderThickness="0,1,0,0" Padding="8,4">
-            <TextBlock x:Name="FooterCredit" Text="E-Prescriptions by Maged Fayez | (C) all rights reserved" FlowDirection="LeftToRight"
-                       Foreground="#5B7389" FontSize="11" HorizontalAlignment="Center" />
-        </Border>
+        <!-- شريط اختصارات لوحة المفاتيح (مكوّن مشترك مع النوافذ المستقلة): Overlay ملتصق بأسفل النافذة -->
+        <views:ShortcutsBar Grid.Row="2" VerticalAlignment="Bottom" Panel.ZIndex="20" Target="{Binding CurrentView}" />
     </Grid>
 </Window>

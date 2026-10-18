@@ -1,0 +1,164 @@
+<UserControl x:Class="ePrescriptions.App.Views.ShortcutsBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="RightToLeft"
+             FontFamily="{StaticResource AppFontFamily}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <!-- 3) شريط اختصارات لوحة المفاتيح: Overlay ملتصق بأسفل النافذة (مش بيزق المحتوى).
+            اللوحة (مخفية افتراضياً) فوق الشريط الثابت، وبتظهر بأنيميشن لما الماوس يدخل الشريط أو اللوحة.
+            شارات المفاتيح للعرض فقط؛ الاختصارات الفعلية هي Window.InputBindings وشغالة دايماً. -->
+    <StackPanel x:Name="Overlay" DataContext="{Binding Target, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                MouseEnter="Shortcuts_MouseEnter" MouseLeave="Shortcuts_MouseLeave">
+
+        <!-- لوحة الاختصارات: الارتفاع بيتحرك من 0 للارتفاع الكامل بالكود -->
+        <Border x:Name="ShortcutsPanel" Height="0" ClipToBounds="True" Background="#0A4C86" BorderBrush="#5FA9DB" BorderThickness="0,1,0,0">
+            <Border x:Name="ShortcutsPanelContent" Padding="12,8">
+                <WrapPanel Orientation="Horizontal">
+            <Button Command="{Binding NewInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0083CB" Margin="4,3">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#0155A5" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F1" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="فاتورة جديدة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding SaveInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#10B981" Margin="4,3">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#047857" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F2" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="حفظ الفاتورة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding PrintInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#02ABE1" Margin="4,3">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#4338CA" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F3" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="طباعة إيصال" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding OpenItemSearchCommand}" Style="{StaticResource PosActionButton}" Background="#059669" Margin="4,3" ToolTip="البحث اليدوي عن صنف وإضافته للفاتورة (F4)">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#065F46" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F4" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="بحث عن صنف" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding RemoveSelectedItemCommand}" Style="{StaticResource PosActionButton}" Background="#EF4444" Margin="4,3" ToolTip="حذف الصنف المحدد حالياً من الفاتورة (زر Delete)">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#B91C1C" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="Del" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="حذف الصنف" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding SuspendInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#F59E0B" Margin="4,3">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#B45309" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F8" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="تطبيق الفاتورة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding ToggleReturnModeCommand}" Style="{StaticResource PosActionButton}" Background="#D3277B" Margin="4,3">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#A2165F" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F9" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="وضع المرتجع" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding OpenCashDrawerCommand}" Style="{StaticResource PosActionButton}" Background="#3F5A73" Margin="4,3">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#0A5A96" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <TextBlock Text="F10" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="فتح الدرج" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding PreviousInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0284C7" Margin="4,3" ToolTip="استعراض الفاتورة السابقة">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="◀ السابقة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding NextInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#0284C7" Margin="4,3" ToolTip="استعراض الفاتورة التالية">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="التالية ▶" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding OpenInvoiceHistoryCommand}" Style="{StaticResource PosActionButton}" Background="#334155" Margin="4,3" ToolTip="عرض سجل الفواتير السابقة واستعراضها">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="📋 الفواتير السابقة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Border Width="1" Height="26" Background="#6FA8D6" Margin="8,0" VerticalAlignment="Center" />
+            <Button Command="{Binding UndoLastSavedInvoiceCommand}" Style="{StaticResource PosActionButton}" Background="#DC2626" Margin="4,3" ToolTip="التراجع عن آخر فاتورة بيع تم حفظها وإلغاؤها واسترجاع أصنافها للمخزون">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#991B1B" CornerRadius="4" Padding="5,2" Margin="0,0,6,0">
+                        <Path Data="{StaticResource IconReturn}" Fill="White" Width="10" Height="10" Stretch="Uniform" />
+                    </Border>
+                    <TextBlock Text="تراجع عن الفاتورة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding ToggleCancelPanelCommand}" Style="{StaticResource PosActionButton}" Background="#EA580C" Margin="4,3" ToolTip="إظهار أو إخفاء لوحة إلغاء فاتورة بالرقم (للمدير وصاحب الصيدلية فقط)" Visibility="{Binding CanCancelInvoice, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="إلغاء فاتورة" Foreground="White" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+                </WrapPanel>
+            </Border>
+        </Border>
+
+        <!-- الشريط الثابت (ظاهر دايماً) -->
+        <Border Height="40" Background="#0155A5" BorderBrush="#38BDF8" BorderThickness="0,2,0,0" Padding="14,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="اختصارات لوحة المفاتيح ▴" Foreground="White" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="قرّب الماوس لعرضها" Foreground="#B9D6E8" FontSize="11" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F1" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F2" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F3" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F4" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F8" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F9" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="F10" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                    <Border Background="#0A3F73" BorderBrush="#5FA9DB" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="3,0">
+                        <TextBlock Text="Del" Foreground="White" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                </StackPanel>
+
+                <TextBlock x:Name="FooterCredit" Grid.Column="2" Text="E-Prescriptions by Maged Fayez | (C) all rights reserved" FlowDirection="LeftToRight"
+                           Foreground="#DCF1FB" FontSize="11" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>

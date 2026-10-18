@@ -89,20 +89,10 @@
     </Window.InputBindings>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <!-- المحتوى الكامل للشاشة ممتد بكامل المساحة -->
-            <RowDefinition Height="*" />
-            <!-- الفوتر الثابت -->
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <!-- 1) منطقة عرض الشاشة (هامش سفلي 46 عشان شريط الاختصارات الـ Overlay ما يغطيش المحتوى) -->
+        <ContentControl Content="{Binding CurrentViewModel}" Margin="4,4,4,46" />
 
-        <!-- 1) منطقة عرض الشاشة (مساحة كاملة ومريحة) -->
-        <ContentControl Grid.Row="0" Content="{Binding CurrentViewModel}" Margin="4" />
-
-        <!-- 2) الفوتر -->
-        <Border Grid.Row="1" Background="White" BorderBrush="#D5E4EE" BorderThickness="0,1,0,0" Padding="8,4">
-            <TextBlock Text="E-Prescriptions by Maged Fayez | (C) all rights reserved" FlowDirection="LeftToRight"
-                       Foreground="#5B7389" FontSize="11" HorizontalAlignment="Center" />
-        </Border>
+        <!-- 2) شريط اختصارات لوحة المفاتيح (نفس المكوّن المستخدم في النافذة الرئيسية، وفيه نص الحقوق) -->
+        <views:ShortcutsBar VerticalAlignment="Bottom" Panel.ZIndex="20" Target="{Binding CurrentViewModel}" />
     </Grid>
 </Window>
